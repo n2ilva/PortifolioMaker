@@ -232,9 +232,21 @@ export class GooglePhotosService {
   }
 
   // Converter foto do Google para DataURL para usar nos slides
-  async downloadPhotoAsDataUrl(photo: GooglePhoto): Promise<string> {
-    // Adicionar parâmetros para obter a imagem em tamanho máximo
-    const imageUrl = `${photo.baseUrl}=w${photo.width}-h${photo.height}`;
+  // Limita o tamanho para melhor performance (max 1920px no maior lado)
+  async downloadPhotoAsDataUrl(photo: GooglePhoto, maxSize: number = 1920): Promise<string> {
+    // Calcular dimensões mantendo aspect ratio
+    let width = photo.width;
+    let height = photo.height;
+    
+    if (width > height && width > maxSize) {
+      height = Math.round((height * maxSize) / width);
+      width = maxSize;
+    } else if (height > maxSize) {
+      width = Math.round((width * maxSize) / height);
+      height = maxSize;
+    }
+    
+    const imageUrl = `${photo.baseUrl}=w${width}-h${height}`;
     
     try {
       const response = await fetch(imageUrl);
@@ -250,5 +262,33 @@ export class GooglePhotosService {
       console.error('Erro ao baixar foto:', error);
       throw error;
     }
+  }
+
+  // Download em lote com concorrência limitada para não travar
+  async downloadPhotosInBatches(
+    photos: GooglePhoto[], 
+    batchSize: number = 3,
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<{ photo: GooglePhoto; dataUrl: string }[]> {
+    const results: { photo: GooglePhoto; dataUrl: string }[] = [];
+    
+    for (let i = 0; i < photos.length; i += batchSize) {
+      const batch = photos.slice(i, i + batchSize);
+      
+      const batchResults = await Promise.all(
+        batch.map(async (photo) => {
+          const dataUrl = await this.downloadPhotoAsDataUrl(photo);
+          return { photo, dataUrl };
+        })
+      );
+      
+      results.push(...batchResults);
+      
+      if (onProgress) {
+        onProgress(results.length, photos.length);
+      }
+    }
+    
+    return results;
   }
 }

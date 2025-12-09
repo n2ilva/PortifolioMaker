@@ -293,7 +293,14 @@
       @if (isProcessing) {
         <div class="loading">
           <div class="spinner"></div>
-          <span>Processando...</span>
+          @if (downloadProgress.total > 0) {
+            <span>Baixando fotos... {{ downloadProgress.completed }}/{{ downloadProgress.total }}</span>
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="(downloadProgress.completed / downloadProgress.total) * 100"></div>
+            </div>
+          } @else {
+            <span>Processando...</span>
+          }
         </div>
       }
     </div>

@@ -535,6 +535,9 @@ export class PhotoImportComponent {
     this.googlePhotos.clearSelection();
   }
 
+  // Propriedade para mostrar progresso
+  downloadProgress = { completed: 0, total: 0 };
+
   async addGooglePhotosToImport(): Promise<void> {
     const selectedPhotos = this.googlePhotos.getSelectedPhotos();
     
@@ -545,29 +548,35 @@ export class PhotoImportComponent {
 
     this.isProcessing = true;
     this.errorMessage = '';
+    this.downloadProgress = { completed: 0, total: selectedPhotos.length };
 
     try {
       const startOrder = this.photos.length + 1;
       
-      for (let i = 0; i < selectedPhotos.length; i++) {
-        const gPhoto = selectedPhotos[i];
-        
-        // Baixar a foto como DataURL
-        const dataUrl = await this.googlePhotos.downloadPhotoAsDataUrl(gPhoto);
-        
+      // Usar download em lotes para não travar a interface
+      const results = await this.googlePhotos.downloadPhotosInBatches(
+        selectedPhotos,
+        3, // 3 fotos por vez
+        (completed, total) => {
+          this.downloadProgress = { completed, total };
+        }
+      );
+      
+      // Criar PhotoFiles a partir dos resultados
+      results.forEach((result, i) => {
         const photoFile: PhotoFile = {
           file: null,
-          name: gPhoto.filename,
+          name: result.photo.filename,
           orderNumber: startOrder + i,
-          dataUrl,
+          dataUrl: result.dataUrl,
           targetSlide: 1,
           slotInSlide: 1,
           fromGoogle: true,
-          googlePhoto: gPhoto
+          googlePhoto: result.photo
         };
         
         this.photos.push(photoFile);
-      }
+      });
 
       // Ordenar e redistribuir
       this.photos.sort((a, b) => a.orderNumber - b.orderNumber);
@@ -588,5 +597,6 @@ export class PhotoImportComponent {
     }
 
     this.isProcessing = false;
+    this.downloadProgress = { completed: 0, total: 0 };
   }
 }
