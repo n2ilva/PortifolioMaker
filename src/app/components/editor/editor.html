@@ -1,5 +1,8 @@
 <div class="editor-container">
-  <app-toolbar (openBatchImport)="openBatchImport()"></app-toolbar>
+  <app-toolbar 
+    (openBatchImport)="openBatchImport()"
+    (startPresentation)="startPresentation()"
+  ></app-toolbar>
   
   <div class="editor-main">
     <app-slide-list></app-slide-list>
@@ -10,3 +13,6 @@
 
 <!-- Modal de Importação em Lote -->
 <app-photo-import #photoImport></app-photo-import>
+
+<!-- Modo Apresentação -->
+<app-presentation #presentation></app-presentation>

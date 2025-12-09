@@ -57,6 +57,16 @@
   </div>
   
   <div class="toolbar-right">
-    <button class="btn btn-success">Exportar</button>
+    <button class="btn btn-presentation" (click)="onStartPresentation()" title="Iniciar apresentação (F5)">
+      ▶ Apresentar
+    </button>
+    <button 
+      class="btn btn-success" 
+      (click)="onExportPdf()" 
+      [disabled]="isExporting"
+      title="Exportar como PDF"
+    >
+      {{ isExporting ? '⏳ Exportando...' : '📄 Exportar PDF' }}
+    </button>
   </div>
 </div>

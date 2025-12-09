@@ -1,0 +1,85 @@
+<div class="presentation-overlay" *ngIf="isOpen" (click)="nextSlide()">
+  <!-- Slide Content -->
+  <div class="presentation-slide" *ngIf="currentSlide">
+    <!-- Background Color -->
+    <div 
+      class="slide-background" 
+      [style.background-color]="currentSlide.backgroundColor"
+    ></div>
+    
+    <!-- Elements -->
+    <ng-container *ngFor="let element of currentSlide.elements">
+      <!-- Image Element -->
+      <div 
+        *ngIf="isImage(element)" 
+        class="presentation-element"
+        [class.background-element]="element.metadata?.['backgroundDecor']"
+        [ngStyle]="getElementStyle(element)"
+      >
+        <img [src]="element.src" [alt]="element.alt" [ngStyle]="getImageStyle(element)">
+      </div>
+      
+      <!-- Text Element -->
+      <div 
+        *ngIf="isText(element)" 
+        class="presentation-element presentation-text"
+        [ngStyle]="getElementStyle(element)"
+      >
+        <span [ngStyle]="getTextStyle(element)">{{ element.content }}</span>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Controls -->
+  <div class="presentation-controls" [class.visible]="showControls" (click)="$event.stopPropagation()">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <button class="close-btn" (click)="close()" title="Sair (ESC)">
+        ✕
+      </button>
+    </div>
+
+    <!-- Navigation Arrows -->
+    <button 
+      class="nav-btn prev-btn" 
+      (click)="prevSlide(); $event.stopPropagation()"
+      [disabled]="currentSlideIndex === 0"
+      title="Slide anterior"
+    >
+      ‹
+    </button>
+    
+    <button 
+      class="nav-btn next-btn" 
+      (click)="nextSlide(); $event.stopPropagation()"
+      [disabled]="currentSlideIndex === totalSlides - 1"
+      title="Próximo slide"
+    >
+      ›
+    </button>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <!-- Slide Counter -->
+      <div class="slide-counter">
+        {{ currentSlideIndex + 1 }} / {{ totalSlides }}
+      </div>
+
+      <!-- Slide Thumbnails -->
+      <div class="slide-dots">
+        <button 
+          *ngFor="let slide of slideService.slides(); let i = index"
+          class="slide-dot"
+          [class.active]="i === currentSlideIndex"
+          (click)="goToSlide(i); $event.stopPropagation()"
+          [title]="'Slide ' + (i + 1)"
+        ></button>
+      </div>
+
+      <!-- Keyboard Hint -->
+      <div class="keyboard-hint">
+        Use ← → ou clique para navegar • ESC para sair
+      </div>
+    </div>
+  </div>
+</div>

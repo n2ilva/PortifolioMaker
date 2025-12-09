@@ -107,3 +107,17 @@
   min-width: 50px;
   text-align: center;
 }
+
+.btn-presentation {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  font-weight: bold;
+  padding: 10px 20px;
+  font-size: 15px;
+}
+
+.btn-presentation:hover {
+  background: linear-gradient(135deg, #ff7f4d 0%, #ffaa33 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+}
