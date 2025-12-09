@@ -7,6 +7,19 @@
         [style.background-color]="slide.backgroundColor"
         (click)="onCanvasClick()"
       >
+        <!-- Guias de Grade do Layout -->
+        @for (guide of getLayoutGridGuides(slide.layoutId); track $index) {
+          <div 
+            class="layout-grid-guide"
+            [style.left.%]="guide.x"
+            [style.top.%]="guide.y"
+            [style.width.%]="guide.width"
+            [style.height.%]="guide.height"
+          >
+            <span class="grid-guide-label">{{ guide.label }}</span>
+          </div>
+        }
+
         <!-- Linhas Guia de Alinhamento -->
         @for (guide of slideService.alignmentGuides(); track guide.position) {
           @if (guide.type === 'vertical') {

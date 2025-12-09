@@ -27,6 +27,29 @@
   isolation: isolate; /* Cria novo stacking context para permitir z-index negativo */
 }
 
+/* Guias de Grade do Layout */
+.layout-grid-guide {
+  position: absolute;
+  border: 1px dashed rgba(100, 149, 237, 0.5);
+  background: rgba(100, 149, 237, 0.05);
+  pointer-events: none;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.grid-guide-label {
+  font-size: 11px;
+  color: rgba(100, 149, 237, 0.6);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Linhas Guia de Alinhamento */
 .alignment-guide {
   position: absolute;

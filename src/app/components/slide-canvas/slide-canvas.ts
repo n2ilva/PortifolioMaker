@@ -2,7 +2,7 @@ import { Component, inject, ElementRef, ViewChild, HostListener } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
-import { ImageElement, TextElement, ElementBorderStyle } from '../../models/slide.model';
+import { ImageElement, TextElement, ElementBorderStyle, LayoutGridGuide } from '../../models/slide.model';
 
 @Component({
   selector: 'app-slide-canvas',
@@ -25,6 +25,8 @@ export class SlideCanvas {
   private elementStartWidth = 0;
   private elementStartHeight = 0;
   private resizeHandle = '';
+  private elementAspectRatio = 1; // Para manter proporção ao redimensionar
+  private resizingElementType: 'image' | 'text' | null = null;
 
   // Hover menu
   hoveredElementId: string | null = null;
@@ -153,6 +155,12 @@ export class SlideCanvas {
     this.elementStartY = element.position.y;
     this.elementStartWidth = element.position.width;
     this.elementStartHeight = element.position.height;
+    
+    // Calcular aspect ratio para manter proporção (baseado em pixels reais)
+    const widthPx = (element.position.width / 100) * rect.width;
+    const heightPx = (element.position.height / 100) * rect.height;
+    this.elementAspectRatio = widthPx / heightPx;
+    this.resizingElementType = element.type;
 
     if (handle) {
       this.isResizing = true;
@@ -199,20 +207,57 @@ export class SlideCanvas {
       let newX = this.elementStartX;
       let newY = this.elementStartY;
 
-      if (this.resizeHandle.includes('e')) {
-        newWidth = Math.max(5, this.elementStartWidth + deltaX);
+      const canvas = this.canvasRef.nativeElement;
+      const canvasRect = canvas.getBoundingClientRect();
+      const canvasAspect = canvasRect.width / canvasRect.height;
+
+      // Para imagens, manter proporção ao redimensionar pelos cantos
+      const isCornerResize = (this.resizeHandle.includes('n') || this.resizeHandle.includes('s')) &&
+                             (this.resizeHandle.includes('e') || this.resizeHandle.includes('w'));
+      const keepAspectRatio = this.resizingElementType === 'image';
+
+      if (keepAspectRatio && isCornerResize) {
+        // Redimensionar mantendo proporção
+        const deltaMax = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY * canvasAspect;
+        
+        if (this.resizeHandle === 'se') {
+          newWidth = Math.max(5, this.elementStartWidth + deltaMax);
+          newHeight = (newWidth / this.elementAspectRatio) * canvasAspect;
+        } else if (this.resizeHandle === 'sw') {
+          newWidth = Math.max(5, this.elementStartWidth - deltaMax);
+          newHeight = (newWidth / this.elementAspectRatio) * canvasAspect;
+          newX = this.elementStartX + (this.elementStartWidth - newWidth);
+        } else if (this.resizeHandle === 'ne') {
+          newWidth = Math.max(5, this.elementStartWidth + deltaMax);
+          newHeight = (newWidth / this.elementAspectRatio) * canvasAspect;
+          newY = this.elementStartY + (this.elementStartHeight - newHeight);
+        } else if (this.resizeHandle === 'nw') {
+          newWidth = Math.max(5, this.elementStartWidth - deltaMax);
+          newHeight = (newWidth / this.elementAspectRatio) * canvasAspect;
+          newX = this.elementStartX + (this.elementStartWidth - newWidth);
+          newY = this.elementStartY + (this.elementStartHeight - newHeight);
+        }
+      } else {
+        // Redimensionamento livre (bordas ou texto)
+        if (this.resizeHandle.includes('e')) {
+          newWidth = Math.max(5, this.elementStartWidth + deltaX);
+        }
+        if (this.resizeHandle.includes('w')) {
+          newWidth = Math.max(5, this.elementStartWidth - deltaX);
+          newX = this.elementStartX + deltaX;
+        }
+        if (this.resizeHandle.includes('s')) {
+          newHeight = Math.max(5, this.elementStartHeight + deltaY);
+        }
+        if (this.resizeHandle.includes('n')) {
+          newHeight = Math.max(5, this.elementStartHeight - deltaY);
+          newY = this.elementStartY + deltaY;
+        }
       }
-      if (this.resizeHandle.includes('w')) {
-        newWidth = Math.max(5, this.elementStartWidth - deltaX);
-        newX = this.elementStartX + deltaX;
-      }
-      if (this.resizeHandle.includes('s')) {
-        newHeight = Math.max(5, this.elementStartHeight + deltaY);
-      }
-      if (this.resizeHandle.includes('n')) {
-        newHeight = Math.max(5, this.elementStartHeight - deltaY);
-        newY = this.elementStartY + deltaY;
-      }
+
+      // Garantir valores mínimos
+      newWidth = Math.max(5, newWidth);
+      newHeight = Math.max(5, newHeight);
 
       this.slideService.updateElementPosition(elementId, {
         x: newX,
@@ -322,5 +367,12 @@ export class SlideCanvas {
 
   asText(element: ImageElement | TextElement): TextElement {
     return element as TextElement;
+  }
+
+  // Obter guias de grade do layout atual
+  getLayoutGridGuides(layoutId?: string): LayoutGridGuide[] {
+    if (!layoutId) return [];
+    const layout = this.slideService.layoutTemplates.find(l => l.id === layoutId);
+    return layout?.gridGuides || [];
   }
 }

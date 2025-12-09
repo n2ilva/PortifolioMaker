@@ -511,8 +511,15 @@ export class SlideService {
   }
 
   // Criar elementos a partir de um layout template
+  // Se o layout usar gridGuides, não cria elementos (o usuário adiciona manualmente)
   private createElementsFromLayout(layout?: LayoutTemplate): (ImageElement | TextElement)[] {
     if (!layout) return [];
+    
+    // Se o layout usa gridGuides, não criar elementos vazios
+    // Os gridGuides são apenas guias visuais para o usuário
+    if (layout.gridGuides && layout.gridGuides.length > 0) {
+      return [];
+    }
 
     return layout.elements.map((template, index) => {
       const baseElement = {

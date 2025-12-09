@@ -76,12 +76,22 @@ export interface LayoutElementTemplate {
   zIndex: number;
 }
 
+// Guia de grade do layout (área de referência visual)
+export interface LayoutGridGuide {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
 // Layout pré-definido
 export interface LayoutTemplate {
   id: string;
   name: string;
   description: string;
   thumbnail?: string;
+  gridGuides?: LayoutGridGuide[]; // Guias visuais para posicionamento
   elements: LayoutElementTemplate[];
 }
 
