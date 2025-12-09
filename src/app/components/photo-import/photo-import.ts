@@ -152,24 +152,85 @@ export class PhotoImportComponent {
       return;
     }
 
-    const photoPromises = imageFiles.map(async (file) => {
-      const orderNumber = this.extractOrderNumber(file.name);
-      const dataUrl = await this.readFileAsDataUrl(file);
+    this.downloadProgress = { completed: 0, total: imageFiles.length };
+    const newPhotos: PhotoFile[] = [];
+    const batchSize = 3; // Processar 3 imagens por vez
+    
+    for (let i = 0; i < imageFiles.length; i += batchSize) {
+      const batch = imageFiles.slice(i, i + batchSize);
       
-      return {
-        file,
-        name: file.name,
-        orderNumber: orderNumber || (this.photos.length + 1),
-        dataUrl,
-        targetSlide: 1,
-        slotInSlide: 1
-      } as PhotoFile;
-    });
+      const batchResults = await Promise.all(
+        batch.map(async (file) => {
+          const orderNumber = this.extractOrderNumber(file.name);
+          // Redimensionar imagem para melhor performance
+          const dataUrl = await this.resizeAndReadFile(file, 1920);
+          
+          return {
+            file,
+            name: file.name,
+            orderNumber: orderNumber || (this.photos.length + newPhotos.length + 1),
+            dataUrl,
+            targetSlide: 1,
+            slotInSlide: 1
+          } as PhotoFile;
+        })
+      );
+      
+      newPhotos.push(...batchResults);
+      this.downloadProgress = { completed: newPhotos.length, total: imageFiles.length };
+    }
 
-    const newPhotos = await Promise.all(photoPromises);
     this.photos = [...this.photos, ...newPhotos].sort((a, b) => a.orderNumber - b.orderNumber);
     this.autoDistributePhotos();
     this.isProcessing = false;
+    this.downloadProgress = { completed: 0, total: 0 };
+  }
+
+  // Redimensionar imagem para melhor performance
+  private resizeAndReadFile(file: File, maxSize: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Verificar se precisa redimensionar
+          if (img.width <= maxSize && img.height <= maxSize) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          
+          // Calcular novas dimensões mantendo proporção
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+          
+          // Criar canvas e redimensionar
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Usar qualidade 0.85 para JPEG (bom equilíbrio qualidade/tamanho)
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   private extractOrderNumber(filename: string): number {
