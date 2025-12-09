@@ -1,0 +1,163 @@
+<div class="canvas-container">
+  <div class="canvas-wrapper" [style.transform]="'scale(' + slideService.zoom() / 100 + ')'">
+    @if (slideService.currentSlide(); as slide) {
+      <div 
+        #canvas
+        class="canvas"
+        [style.background-color]="slide.backgroundColor"
+        (click)="onCanvasClick()"
+      >
+        <!-- Linhas Guia de Alinhamento -->
+        @for (guide of slideService.alignmentGuides(); track guide.position) {
+          @if (guide.type === 'vertical') {
+            <div 
+              class="alignment-guide vertical"
+              [style.left.%]="guide.position"
+            ></div>
+          } @else {
+            <div 
+              class="alignment-guide horizontal"
+              [style.top.%]="guide.position"
+            ></div>
+          }
+        }
+
+        @for (element of slide.elements; track element.id) {
+          <div 
+            class="element"
+            [class.selected]="element.id === slideService.selectedElementId()"
+            [class.hovered]="element.id === hoveredElementId"
+            [ngStyle]="getElementStyle(element)"
+            (mousedown)="onMouseDown($event, element)"
+            (click)="onElementClick($event, element)"
+            (mouseenter)="onElementMouseEnter($event, element)"
+            (mouseleave)="onElementMouseLeave($event, element)"
+          >
+            <!-- Elemento de Imagem -->
+            @if (isImage(element)) {
+              <div class="image-element">
+                @if (asImage(element).src) {
+                  <img 
+                    [src]="asImage(element).src" 
+                    alt="Imagem do slide"
+                    [attr.alt]="asImage(element).alt || 'Imagem do slide'"
+                    [attr.title]="asImage(element).alt || 'Imagem do slide'"
+                    [ngStyle]="getImageStyle(asImage(element))"
+                    draggable="false"
+                  >
+                } @else {
+                  <div class="image-placeholder">
+                    <span class="placeholder-icon">📷</span>
+                    <span class="placeholder-text">Arraste uma imagem</span>
+                  </div>
+                }
+              </div>
+            }
+            
+            <!-- Elemento de Texto -->
+            @if (isText(element)) {
+              <div 
+                class="text-element"
+                [class.editing]="editingTextId === element.id"
+                [ngStyle]="getTextStyle(asText(element))"
+                [attr.contenteditable]="editingTextId === element.id ? 'true' : 'false'"
+                (dblclick)="onTextDoubleClick($event, element)"
+                (mousedown)="onTextMouseDown($event, element)"
+                (blur)="onTextBlur($event, asText(element))"
+                #textEl
+              >{{ asText(element).content }}</div>
+            }
+
+            <!-- Menu Flutuante no Hover (somente para imagens) -->
+            @if (element.id === hoveredElementId && isImage(element)) {
+              <div 
+                class="hover-menu"
+                (mouseleave)="onHoverMenuMouseLeave()"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()"
+              >
+                <div class="hover-menu-content">
+                  <!-- Controle de Borda Arredondada -->
+                  <div class="hover-menu-group">
+                    <label class="hover-menu-label">Bordas</label>
+                    <div class="border-presets">
+                      <button 
+                        class="preset-btn" 
+                        [class.active]="borderRadiusValue === 0"
+                        (click)="setBorderRadius(element, 0); $event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        title="Sem arredondamento"
+                      >⬜</button>
+                      <button 
+                        class="preset-btn" 
+                        [class.active]="borderRadiusValue === 8"
+                        (click)="setBorderRadius(element, 8); $event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        title="Levemente arredondado"
+                      >▢</button>
+                      <button 
+                        class="preset-btn" 
+                        [class.active]="borderRadiusValue === 16"
+                        (click)="setBorderRadius(element, 16); $event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        title="Arredondado"
+                      >◽</button>
+                      <button 
+                        class="preset-btn" 
+                        [class.active]="borderRadiusValue >= 50"
+                        (click)="setBorderRadius(element, 50); $event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        title="Muito arredondado"
+                      >⬭</button>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      [(ngModel)]="borderRadiusValue"
+                      (input)="onBorderRadiusChange(element)"
+                      (mousedown)="$event.stopPropagation()"
+                      class="radius-slider"
+                      title="Ajustar arredondamento da borda"
+                      aria-label="Arredondamento da borda"
+                    >
+                  </div>
+
+                  <!-- Toggle de Sombra -->
+                  <div class="hover-menu-group">
+                    <button 
+                      class="shadow-toggle"
+                      [class.active]="shadowEnabled"
+                      (click)="toggleShadow(element); $event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                    >
+                      <span class="shadow-icon">◐</span>
+                      Sombra
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+            
+            <!-- Handles de redimensionamento (quando selecionado) -->
+            @if (element.id === slideService.selectedElementId()) {
+              <div class="resize-handle nw" (mousedown)="onMouseDown($event, element, 'nw')"></div>
+              <div class="resize-handle n" (mousedown)="onMouseDown($event, element, 'n')"></div>
+              <div class="resize-handle ne" (mousedown)="onMouseDown($event, element, 'ne')"></div>
+              <div class="resize-handle e" (mousedown)="onMouseDown($event, element, 'e')"></div>
+              <div class="resize-handle se" (mousedown)="onMouseDown($event, element, 'se')"></div>
+              <div class="resize-handle s" (mousedown)="onMouseDown($event, element, 's')"></div>
+              <div class="resize-handle sw" (mousedown)="onMouseDown($event, element, 'sw')"></div>
+              <div class="resize-handle w" (mousedown)="onMouseDown($event, element, 'w')"></div>
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="no-slide">
+        <p>Nenhum slide selecionado</p>
+        <button (click)="slideService.createSlide()">Criar Slide</button>
+      </div>
+    }
+  </div>
+</div>

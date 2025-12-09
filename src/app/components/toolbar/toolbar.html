@@ -1,0 +1,62 @@
+<div class="toolbar">
+  <div class="toolbar-left">
+    <span class="logo">Portfólio Maker</span>
+  </div>
+  
+  <div class="toolbar-center">
+    <button class="btn btn-primary" (click)="onAddImages()">
+      Adicionar Fotos
+    </button>
+    <input 
+      #fileInput
+      type="file" 
+      multiple 
+      accept="image/*" 
+      (change)="onFilesSelected($event)"
+      style="display: none"
+    >
+
+    <button class="btn btn-secondary" (click)="onImportBatch()">
+      Importar Inteligente
+    </button>
+    
+    <button class="btn" (click)="onAddText()">
+      Adicionar Texto
+    </button>
+    
+    <button class="btn" (click)="onNewSlide()">
+      Novo Slide
+    </button>
+    
+    <div class="separator"></div>
+    
+    <button class="btn" (click)="onZoomOut()">-</button>
+    <span class="zoom-level">{{ slideService.zoom() }}%</span>
+    <button class="btn" (click)="onZoomIn()">+</button>
+    
+    <div class="separator"></div>
+    
+    <button 
+      class="btn" 
+      (click)="onAlignToGrid()"
+      title="Alinhar todos os elementos na grade"
+    >
+      Alinhar à Grade
+    </button>
+
+    <div class="separator"></div>
+
+    <button 
+      class="btn btn-danger" 
+      (click)="onDeleteElement()"
+      [disabled]="!slideService.selectedElementId()"
+      title="Excluir elemento selecionado"
+    >
+      Excluir Elemento
+    </button>
+  </div>
+  
+  <div class="toolbar-right">
+    <button class="btn btn-success">Exportar</button>
+  </div>
+</div>

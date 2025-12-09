@@ -1,6 +1,6 @@
-# AppPortifolio
+# PortifolioMaker
 
-App de criação de slides com React + TypeScript + Vite.
+App de criação de slides com Angular + TypeScript.
 
 ## 🚀 Como iniciar
 
@@ -13,25 +13,41 @@ npm install
 ### Iniciar servidor de desenvolvimento
 
 ```bash
-npm run dev
+ng serve
 ```
 
-O servidor será iniciado em `http://localhost:5173`
+O servidor será iniciado em `http://localhost:4200`
 
 ### Build para produção
 
 ```bash
-npm run build
+ng build
 ```
 
-### Visualizar build de produção
+### Executar testes
 
 ```bash
-npm run preview
+ng test
 ```
 
 ## 🛠️ Tecnologias
 
-- React 18
+- Angular 21
 - TypeScript
-- Vite
+- Angular CLI
+
+## 📁 Estrutura
+
+```
+src/
+├── app/
+│   ├── components/
+│   │   ├── menu/        # Componente de menu
+│   │   ├── edicao/      # Componente de edição
+│   │   └── slides/      # Componente de slides
+│   ├── app.ts           # Componente principal
+│   ├── app.html         # Template principal
+│   └── app.css          # Estilos do componente principal
+├── styles.css           # Estilos globais
+└── index.html           # HTML principal
+```

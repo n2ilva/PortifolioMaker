@@ -1,0 +1,436 @@
+<div class="sidebar">
+  <!-- Tabs -->
+  <div class="sidebar-tabs">
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'layouts'"
+      (click)="setActiveTab('layouts')"
+    >
+      Layouts
+    </button>
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'element'"
+      (click)="setActiveTab('element')"
+      [disabled]="!selectedElement"
+    >
+      Elemento
+    </button>
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'slide'"
+      (click)="setActiveTab('slide')"
+    >
+      Slide
+    </button>
+  </div>
+
+  <div class="sidebar-content">
+    <!-- Tab: Layouts -->
+    @if (activeTab === 'layouts') {
+      <div class="panel">
+        <h4>Layouts Pré-definidos</h4>
+        <p class="panel-description">Clique para aplicar um layout ao slide atual</p>
+        
+        <div class="layouts-grid">
+          @for (layout of slideService.layoutTemplates; track layout.id) {
+            <div 
+              class="layout-item"
+              [class.active]="slideService.currentSlide()?.layoutId === layout.id"
+              (click)="onApplyLayout(layout)"
+            >
+              <div class="layout-icon">{{ getLayoutIcon(layout) }}</div>
+              <span class="layout-name">{{ layout.name }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Tab: Elemento -->
+    @if (activeTab === 'element') {
+      <div class="panel">
+        @if (selectedElement) {
+          <h4>Propriedades do Elemento</h4>
+          
+          <!-- Propriedades de Texto -->
+          @if (isTextElement(selectedElement)) {
+            <div class="property-group">
+              <label>Tamanho da Fonte</label>
+              <input 
+                type="range" 
+                min="10" 
+                max="72" 
+                [value]="$any(selectedElement).fontSize"
+                (input)="onFontSizeChange($event)"
+                title="Tamanho da fonte"
+              >
+              <span class="value">{{ $any(selectedElement).fontSize }}px</span>
+            </div>
+
+            <div class="property-group">
+              <label>Fonte</label>
+              <select
+                class="font-select"
+                [ngModel]="$any(selectedElement).fontFamily"
+                (ngModelChange)="onFontFamilyChange($event)"
+                title="Fonte"
+              >
+                @for (font of fontList; track font.value) {
+                  <option [value]="font.value" [style.font-family]="font.value">
+                    {{ font.name }}
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="property-group">
+              <label>Cor do Texto</label>
+              <div class="color-picker-tabs">
+                <button 
+                  class="color-tab" 
+                  [class.active]="textColorTab === 'palette'"
+                  (click)="textColorTab = 'palette'"
+                >Paleta</button>
+                <button 
+                  class="color-tab" 
+                  [class.active]="textColorTab === 'custom'"
+                  (click)="textColorTab = 'custom'"
+                >Personalizada</button>
+              </div>
+              @if (textColorTab === 'palette') {
+                <div class="color-palette">
+                  @for (color of schoolColorPalette; track color.value) {
+                    <button 
+                      class="color-swatch" 
+                      [style.background-color]="color.value"
+                      [class.active]="$any(selectedElement).color === color.value"
+                      (click)="onTextColorSelect(color.value)"
+                      [title]="color.name"
+                    ></button>
+                  }
+                </div>
+              } @else {
+                <input 
+                  type="color" 
+                  [value]="$any(selectedElement).color"
+                  (change)="onTextColorChange($event)"
+                  title="Cor do texto"
+                >
+              }
+            </div>
+
+            <div class="property-group">
+              <label>Cor de Fundo</label>
+              <div class="color-picker-tabs">
+                <button 
+                  class="color-tab" 
+                  [class.active]="bgColorTab === 'palette'"
+                  (click)="bgColorTab = 'palette'"
+                >Paleta</button>
+                <button 
+                  class="color-tab" 
+                  [class.active]="bgColorTab === 'custom'"
+                  (click)="bgColorTab = 'custom'"
+                >Personalizada</button>
+              </div>
+              @if (bgColorTab === 'palette') {
+                <div class="color-palette">
+                  <button 
+                    class="color-swatch transparent-swatch" 
+                    [class.active]="!$any(selectedElement).backgroundColor || $any(selectedElement).backgroundColor === 'transparent'"
+                    (click)="onClearTextBackground()"
+                    title="Transparente"
+                  ></button>
+                  @for (color of schoolColorPalette; track color.value) {
+                    <button 
+                      class="color-swatch" 
+                      [style.background-color]="color.value"
+                      [class.active]="$any(selectedElement).backgroundColor === color.value"
+                      (click)="onTextBackgroundSelect(color.value)"
+                      [title]="color.name"
+                    ></button>
+                  }
+                </div>
+              } @else {
+                <div class="color-with-clear">
+                  <input 
+                    type="color" 
+                    [value]="$any(selectedElement).backgroundColor || '#ffffff'"
+                    (change)="onTextBackgroundColorChange($event)"
+                    title="Cor de fundo do texto"
+                  >
+                  <button 
+                    class="btn-clear"
+                    (click)="onClearTextBackground()"
+                    title="Remover fundo"
+                  >Limpar</button>
+                </div>
+              }
+            </div>
+
+            <div class="property-group">
+              <label>Bordas Arredondadas</label>
+              <input 
+                type="range" 
+                min="0" 
+                max="50" 
+                [value]="$any(selectedElement).border?.radius || 0"
+                (input)="onTextBorderRadiusChange($event)"
+                title="Arredondamento das bordas"
+              >
+              <span class="value">{{ $any(selectedElement).border?.radius || 0 }}px</span>
+            </div>
+
+            <div class="property-group">
+              <label>Alinhamento</label>
+              <div class="button-group">
+                <button 
+                  [class.active]="$any(selectedElement).textAlign === 'left'"
+                  (click)="onTextAlignChange('left')"
+                >⬅️</button>
+                <button 
+                  [class.active]="$any(selectedElement).textAlign === 'center'"
+                  (click)="onTextAlignChange('center')"
+                >↔️</button>
+                <button 
+                  [class.active]="$any(selectedElement).textAlign === 'right'"
+                  (click)="onTextAlignChange('right')"
+                >➡️</button>
+              </div>
+            </div>
+
+            <div class="property-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  [checked]="$any(selectedElement).fontWeight === 'bold'"
+                  (change)="onFontWeightChange($event)"
+                >
+                Negrito
+              </label>
+            </div>
+
+            <div class="property-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  [checked]="$any(selectedElement).fontStyle === 'italic'"
+                  (change)="onFontStyleChange($event)"
+                >
+                Itálico
+              </label>
+            </div>
+
+            <div class="property-group">
+              <label>Espaçamento entre linhas</label>
+              <input 
+                type="range" 
+                min="1" 
+                max="3" 
+                step="0.1"
+                [value]="$any(selectedElement).lineHeight || 1.2"
+                (input)="onLineHeightChange($event)"
+                title="Espaçamento entre linhas"
+              >
+              <span class="value">{{ ($any(selectedElement).lineHeight || 1.2) | number:'1.1-1' }}x</span>
+            </div>
+          }
+
+          <!-- Propriedades de Imagem -->
+          @if (isImageElement(selectedElement)) {
+            <div class="property-group">
+              <label>Ajuste da Imagem</label>
+              <div class="button-group">
+                <button 
+                  [class.active]="$any(selectedElement).fit === 'cover'"
+                  (click)="onImageFitChange('cover')"
+                >Preencher</button>
+                <button 
+                  [class.active]="$any(selectedElement).fit === 'contain'"
+                  (click)="onImageFitChange('contain')"
+                >Conter</button>
+                <button 
+                  [class.active]="$any(selectedElement).fit === 'fill'"
+                  (click)="onImageFitChange('fill')"
+                >Esticar</button>
+              </div>
+            </div>
+
+            @if ($any(selectedElement).orderNumber) {
+              <div class="property-group">
+                <label>Ordem da Imagem</label>
+                <span class="value">#{{ $any(selectedElement).orderNumber }}</span>
+              </div>
+            }
+          }
+
+          <div class="property-group">
+            <label>Posição</label>
+            <div class="position-info">
+              <span>X: {{ selectedElement.position.x | number:'1.0-0' }}%</span>
+              <span>Y: {{ selectedElement.position.y | number:'1.0-0' }}%</span>
+            </div>
+            <div class="position-info">
+              <span>W: {{ selectedElement.position.width | number:'1.0-0' }}%</span>
+              <span>H: {{ selectedElement.position.height | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+        } @else {
+          <p class="no-selection">Selecione um elemento para editar</p>
+        }
+      </div>
+    }
+
+    <!-- Tab: Slide -->
+    @if (activeTab === 'slide') {
+      <div class="panel">
+        <h4>Configurações do Slide</h4>
+        
+        @if (slideService.currentSlide(); as slide) {
+          <div class="property-group">
+            <label>Cor de Fundo</label>
+            <input 
+              type="color" 
+              [value]="slide.backgroundColor"
+              (change)="onBackgroundColorChange($event)"
+              title="Cor de fundo do slide"
+            >
+          </div>
+
+          <div class="property-group">
+            <label>Imagem de Fundo</label>
+            
+            <div class="theme-list">
+              @for (theme of backgroundThemes; track theme.id) {
+                <div 
+                  class="theme-item"
+                  [class.selected]="isThemeSelected(theme.id)"
+                  (click)="onSelectBackgroundTheme(theme)"
+                >
+                  <div 
+                    class="theme-preview" 
+                    [style.background]="getThemePreviewStyle(theme)"
+                  ></div>
+                  <div class="theme-info">
+                    <span class="theme-name">{{ theme.name }}</span>
+                    <span class="theme-desc">{{ theme.description }}</span>
+                  </div>
+                  @if (theme.isUserAdded) {
+                    <button 
+                      class="btn-remove-theme"
+                      (click)="removeCustomTheme(theme, $event)"
+                      title="Remover tema"
+                    >✕</button>
+                  }
+                  @if (isThemeSelected(theme.id)) {
+                    <span class="theme-check">✓</span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="theme-actions">
+              <button 
+                class="btn-add-image"
+                (click)="openAddImageModal()"
+              >
+                + Adicionar Imagem
+              </button>
+              <button 
+                class="btn-apply-all-simple"
+                (click)="onApplyBackgroundThemeToAll()"
+                [disabled]="!lastSelectedTheme"
+              >
+                Aplicar em todos
+              </button>
+            </div>
+          </div>
+
+          <div class="property-group">
+            <label>Nome do Slide</label>
+            <input 
+              type="text" 
+              class="slide-name-input value"
+              [value]="slide.name"
+              (input)="onSlideNameChange($event)"
+              title="Nome do slide"
+              placeholder="Nome do slide"
+            >
+          </div>
+
+          <div class="property-group">
+            <label>Elementos</label>
+            <span class="value">{{ slide.elements.length }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Modal: Adicionar Imagem de Fundo -->
+@if (showAddImageModal) {
+  <div class="modal-overlay" (click)="closeAddImageModal()">
+    <div class="add-image-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Adicionar Imagem de Fundo</h3>
+        <button class="btn-close-modal" (click)="closeAddImageModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Imagem</label>
+          <div class="image-upload-area">
+            @if (newImagePreview) {
+              <img [src]="newImagePreview" class="image-preview" alt="Preview">
+            } @else {
+              <div class="upload-placeholder">
+                <span class="upload-icon">📷</span>
+                <span>Clique para selecionar</span>
+              </div>
+            }
+            <input 
+              type="file" 
+              accept="image/*"
+              class="file-input"
+              (change)="onNewImageFileSelect($event)"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Nome do Tema *</label>
+          <input 
+            type="text" 
+            class="form-input"
+            [(ngModel)]="newImageName"
+            placeholder="Ex: Natureza, Praia, Floresta..."
+          >
+        </div>
+
+        <div class="form-group">
+          <label>Descrição</label>
+          <input 
+            type="text" 
+            class="form-input"
+            [(ngModel)]="newImageDescription"
+            placeholder="Descrição opcional do tema"
+          >
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button 
+          class="btn-cancel"
+          (click)="closeAddImageModal()"
+        >Cancelar</button>
+        <button 
+          class="btn-confirm"
+          [disabled]="!newImageName.trim() || !newImageData"
+          (click)="confirmAddImage()"
+        >Adicionar</button>
+      </div>
+    </div>
+  </div>
+}

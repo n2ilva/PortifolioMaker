@@ -1,0 +1,200 @@
+<div class="photo-import-overlay" *ngIf="isVisible" (click)="closeModal()">
+  <div class="photo-import-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>📁 Importar Inteligente</h2>
+      <button class="close-btn" (click)="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Instruções -->
+      <div class="instructions">
+        <h4>📋 Como usar:</h4>
+        <ol>
+          <li>Selecione suas fotos (podem ter números no nome para ordenação automática)</li>
+          <li>Configure em qual slide cada foto deve entrar</li>
+          <li>Slides que não existem serão criados automaticamente</li>
+        </ol>
+        <div class="info-box">
+          <span class="info-icon">ℹ️</span>
+          <span>Você tem <strong>{{ getSlidesCount() }}</strong> slide(s) existente(s).</span>
+        </div>
+      </div>
+
+      <!-- Área de Drop -->
+      <div 
+        class="drop-zone"
+        [class.drag-over]="isDragOver"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <div class="drop-content">
+          <span class="drop-icon">📷</span>
+          <p>Arraste suas fotos aqui</p>
+          <span class="drop-or">ou</span>
+          <button class="select-btn" (click)="onSelectFiles()">Selecionar Arquivos</button>
+        </div>
+      </div>
+
+      <input 
+        #folderInput
+        type="file" 
+        multiple 
+        accept="image/*"
+        (change)="onFilesSelected($event)"
+        style="display: none"
+      >
+
+      <!-- Mensagens -->
+      @if (errorMessage) {
+        <div class="message error">
+          <span class="message-icon">⚠️</span>
+          {{ errorMessage }}
+        </div>
+      }
+
+      @if (successMessage) {
+        <div class="message success">
+          <span class="message-icon">✅</span>
+          {{ successMessage }}
+        </div>
+      }
+
+      <!-- Configuração por Slide -->
+      @if (photos.length > 0) {
+        <div class="slides-config-section">
+          <h4>📊 Distribuição das Fotos por Slide</h4>
+          
+          @for (config of getSlidesWithPhotos(); track config.slideNumber) {
+            <div class="slide-config-card" [class.new-slide]="!config.exists">
+              <div class="slide-config-header">
+                <div class="slide-title">
+                  <span class="slide-badge" [class.new]="!config.exists">
+                    {{ config.exists ? 'Slide ' + config.slideNumber : '+ Novo Slide ' + config.slideNumber }}
+                  </span>
+                  <span class="slot-info">{{ config.photos.length }}/{{ config.imageSlots }} fotos</span>
+                </div>
+                
+                <div class="header-controls">
+                  <!-- Campo de nome para novos slides -->
+                  @if (!config.exists) {
+                    <div class="slide-name-field">
+                      <label>Nome:</label>
+                      <input 
+                        type="text" 
+                        [value]="config.slideName"
+                        (input)="onSlideNameChange(config, $event)"
+                        placeholder="Digite o nome do slide"
+                        class="slide-name-input"
+                        title="Nome do novo slide"
+                      >
+                    </div>
+                  }
+                  
+                  <div class="layout-selector">
+                    <label>Layout:</label>
+                    <select 
+                      [value]="config.layoutId"
+                      (change)="onSlideLayoutChange(config, $event)"
+                      title="Selecionar layout do slide"
+                    >
+                      @for (layout of layouts; track layout.id) {
+                        <option [value]="layout.id">{{ layout.name }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="photos-in-slide">
+                @for (photo of config.photos; track photo.orderNumber) {
+                  <div class="photo-config-item">
+                    <img [src]="photo.dataUrl" [alt]="photo.name" class="photo-thumb">
+                    
+                    <div class="photo-details">
+                      <div class="photo-name-row">
+                        <span class="photo-filename" [title]="photo.name">{{ photo.name }}</span>
+                        <button class="remove-photo-btn" (click)="removePhoto(photo)" title="Remover foto">✕</button>
+                      </div>
+                      
+                      <div class="photo-controls">
+                        <div class="control-group">
+                          <label>Sequência:</label>
+                          <input 
+                            type="number" 
+                            [value]="photo.orderNumber"
+                            (change)="onPhotoOrderChange(photo, $event)"
+                            min="1"
+                            class="order-input"
+                            title="Número de sequência da foto"
+                          >
+                        </div>
+                        
+                        <div class="control-group">
+                          <label>Slide:</label>
+                          <select 
+                            [value]="photo.targetSlide"
+                            (change)="onPhotoSlideChange(photo, $event)"
+                            title="Slide de destino"
+                          >
+                            @for (slideNum of getSlideOptions(); track slideNum) {
+                              <option [value]="slideNum">
+                                {{ slideNum <= getSlidesCount() ? 'Slide ' + slideNum : '+ Novo ' + slideNum }}
+                              </option>
+                            }
+                          </select>
+                        </div>
+                        
+                        <div class="control-group">
+                          <label>Posição:</label>
+                          <select 
+                            [value]="photo.slotInSlide"
+                            (change)="onPhotoSlotChange(photo, $event)"
+                            title="Posição no slide"
+                          >
+                            @for (slot of getSlotOptions(photo.targetSlide); track slot) {
+                              <option [value]="slot">{{ slot }}ª foto</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Resumo -->
+        <div class="import-summary">
+          <span>📌 Total: <strong>{{ photos.length }}</strong> foto(s) para <strong>{{ getSlidesWithPhotos().length }}</strong> slide(s)</span>
+          @if (getSlidesWithPhotos().length > getSlidesCount()) {
+            <span class="new-slides-info">
+              ({{ getSlidesWithPhotos().length - getSlidesCount() }} novo(s) slide(s) será(ão) criado(s))
+            </span>
+          }
+        </div>
+      }
+
+      <!-- Loading -->
+      @if (isProcessing) {
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>Processando...</span>
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Cancelar</button>
+      <button 
+        class="btn-import" 
+        (click)="importPhotos()"
+        [disabled]="photos.length === 0 || isProcessing"
+      >
+        Importar {{ photos.length }} Foto(s)
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #1e1e1e;
+}
+
+.editor-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-main app-slide-list {
+  flex: 0 0 160px;
+}
+
+.editor-main app-slide-canvas {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editor-main app-sidebar {
+  flex: 0 0 260px;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}

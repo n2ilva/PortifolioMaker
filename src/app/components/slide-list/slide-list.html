@@ -1,0 +1,62 @@
+<div class="slide-list">
+  <div class="slide-list-header">
+    <h3>Slides</h3>
+    <span class="slide-count">{{ slideService.slides().length }}</span>
+  </div>
+  
+  <div class="slides-container">
+    @for (slide of slideService.slides(); track slide.id; let i = $index) {
+      <div 
+        class="slide-item"
+        [class.active]="slide.id === slideService.currentSlideId()"
+        (click)="onSelectSlide(slide)"
+      >
+        <span class="slide-number">{{ i + 1 }}</span>
+        <div class="slide-preview" [ngStyle]="getSlidePreviewStyle(slide)">
+          <div class="preview-content">
+            @for (element of slide.elements; track element.id) {
+              @if (element.type === 'image') {
+                <div 
+                  class="preview-element preview-image"
+                  [style.left.%]="element.position.x"
+                  [style.top.%]="element.position.y"
+                  [style.width.%]="element.position.width"
+                  [style.height.%]="element.position.height"
+                >
+                  @if ($any(element).src) {
+                    <img [src]="$any(element).src" alt="">
+                  } @else {
+                    📷
+                  }
+                </div>
+              } @else {
+                <div 
+                  class="preview-element preview-text"
+                  [style.left.%]="element.position.x"
+                  [style.top.%]="element.position.y"
+                  [style.width.%]="element.position.width"
+                  [style.height.%]="element.position.height"
+                >
+                  T
+                </div>
+              }
+            }
+          </div>
+        </div>
+        <div class="slide-actions">
+          <button class="action-btn" (click)="onDuplicateSlide($event, slide)" title="Duplicar">
+            📋
+          </button>
+          <button 
+            class="action-btn delete" 
+            (click)="onDeleteSlide($event, slide)" 
+            title="Excluir"
+            [disabled]="slideService.slides().length <= 1"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

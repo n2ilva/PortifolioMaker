@@ -1,0 +1,12 @@
+<div class="editor-container">
+  <app-toolbar (openBatchImport)="openBatchImport()"></app-toolbar>
+  
+  <div class="editor-main">
+    <app-slide-list></app-slide-list>
+    <app-slide-canvas></app-slide-canvas>
+    <app-sidebar></app-sidebar>
+  </div>
+</div>
+
+<!-- Modal de Importação em Lote -->
+<app-photo-import #photoImport></app-photo-import>
