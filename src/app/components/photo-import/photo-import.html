@@ -1,5 +1,5 @@
 <div class="photo-import-overlay" *ngIf="isVisible" (click)="closeModal()">
-  <div class="photo-import-modal" (click)="$event.stopPropagation()">
+  <div class="photo-import-modal" [class.expanded]="showGooglePhotos" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h2>📁 Importar Inteligente</h2>
       <button class="close-btn" (click)="closeModal()">✕</button>
@@ -10,7 +10,7 @@
       <div class="instructions">
         <h4>📋 Como usar:</h4>
         <ol>
-          <li>Selecione suas fotos (podem ter números no nome para ordenação automática)</li>
+          <li>Selecione suas fotos do computador ou do Google Fotos</li>
           <li>Configure em qual slide cada foto deve entrar</li>
           <li>Slides que não existem serão criados automaticamente</li>
         </ol>
@@ -20,21 +20,133 @@
         </div>
       </div>
 
-      <!-- Área de Drop -->
-      <div 
-        class="drop-zone"
-        [class.drag-over]="isDragOver"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-      >
-        <div class="drop-content">
-          <span class="drop-icon">📷</span>
-          <p>Arraste suas fotos aqui</p>
-          <span class="drop-or">ou</span>
-          <button class="select-btn" (click)="onSelectFiles()">Selecionar Arquivos</button>
+      <!-- Área de Seleção de Fonte -->
+      <div class="source-buttons">
+        <div 
+          class="drop-zone"
+          [class.drag-over]="isDragOver"
+          [class.compact]="photos.length > 0"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+        >
+          <div class="drop-content">
+            <span class="drop-icon">📷</span>
+            <p>Arraste suas fotos aqui</p>
+            <span class="drop-or">ou</span>
+            <button class="select-btn" (click)="onSelectFiles()">Selecionar Arquivos</button>
+          </div>
+        </div>
+
+        <div class="google-photos-btn-container">
+          <button class="google-photos-toggle" (click)="toggleGooglePhotos()">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path fill="#EA4335" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+              <path fill="#fff" d="M12 7a5 5 0 100 10 5 5 0 000-10z"/>
+            </svg>
+            <span>{{ showGooglePhotos ? 'Fechar Google Fotos' : 'Importar do Google Fotos' }}</span>
+          </button>
         </div>
       </div>
+
+      <!-- Google Photos Panel -->
+      @if (showGooglePhotos) {
+        <div class="google-photos-panel">
+          @if (!googlePhotos.isAuthenticated()) {
+            <div class="google-login-section">
+              <p>Conecte-se para acessar suas fotos do Google</p>
+              <button class="btn-google-login" (click)="onGoogleLogin()">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Entrar com Google
+              </button>
+            </div>
+          } @else {
+            <!-- User Info -->
+            <div class="google-user-bar">
+              @if (googlePhotos.userInfo(); as user) {
+                <img [src]="user.picture" [alt]="user.name" class="user-avatar">
+                <span class="user-name">{{ user.name }}</span>
+              }
+              <button class="btn-logout" (click)="onGoogleLogout()">Sair</button>
+            </div>
+
+            <!-- Navigation -->
+            <div class="google-nav">
+              @if (googleView !== 'albums') {
+                <button class="btn-back" (click)="onBackToAlbums()">← Álbuns</button>
+              }
+              @if (googleView === 'albums') {
+                <button class="btn-all-photos" (click)="onShowAllGooglePhotos()">📷 Todas as Fotos</button>
+              }
+              @if (selectedAlbum) {
+                <span class="current-album">📁 {{ selectedAlbum.title }}</span>
+              }
+            </div>
+
+            <!-- Loading -->
+            @if (googlePhotos.isLoading()) {
+              <div class="google-loading">
+                <div class="spinner"></div>
+                <span>Carregando...</span>
+              </div>
+            }
+
+            <!-- Albums -->
+            @if (googleView === 'albums' && !googlePhotos.isLoading()) {
+              <div class="google-albums-grid">
+                @for (album of googlePhotos.albums(); track album.id) {
+                  <div class="album-card" (click)="onSelectAlbum(album)">
+                    @if (album.coverPhotoBaseUrl) {
+                      <img [src]="album.coverPhotoBaseUrl + '=w150-h150-c'" [alt]="album.title">
+                    } @else {
+                      <div class="no-cover">📁</div>
+                    }
+                    <span class="album-title">{{ album.title }}</span>
+                  </div>
+                }
+                @if (googlePhotos.albums().length === 0) {
+                  <p class="no-albums">Nenhum álbum encontrado</p>
+                }
+              </div>
+            }
+
+            <!-- Photos -->
+            @if ((googleView === 'photos' || googleView === 'all-photos') && !googlePhotos.isLoading()) {
+              <div class="google-selection-bar">
+                <span>{{ getGoogleSelectedCount() }} selecionada(s)</span>
+                <button (click)="selectAllGooglePhotos()">Selecionar Todas</button>
+                <button (click)="deselectAllGooglePhotos()">Limpar</button>
+              </div>
+              
+              <div class="google-photos-grid">
+                @for (photo of googlePhotos.photos(); track photo.id) {
+                  <div 
+                    class="google-photo-card" 
+                    [class.selected]="photo.selected"
+                    (click)="onToggleGooglePhoto(photo)"
+                  >
+                    <img [src]="photo.baseUrl + '=w120-h120-c'" [alt]="photo.filename">
+                    @if (photo.selected) {
+                      <div class="photo-check">✓</div>
+                    }
+                  </div>
+                }
+              </div>
+
+              @if (getGoogleSelectedCount() > 0) {
+                <button class="btn-add-google-photos" (click)="addGooglePhotosToImport()">
+                  Adicionar {{ getGoogleSelectedCount() }} Foto(s) à Importação
+                </button>
+              }
+            }
+          }
+        </div>
+      }
 
       <input 
         #folderInput
@@ -63,7 +175,7 @@
       <!-- Configuração por Slide -->
       @if (photos.length > 0) {
         <div class="slides-config-section">
-          <h4>📊 Distribuição das Fotos por Slide</h4>
+          <h4>📊 Distribuição das Fotos por Slide ({{ photos.length }} foto(s))</h4>
           
           @for (config of getSlidesWithPhotos(); track config.slideNumber) {
             <div class="slide-config-card" [class.new-slide]="!config.exists">

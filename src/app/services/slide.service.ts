@@ -781,8 +781,22 @@ export class SlideService {
     return positions;
   }
 
-  // Adicionar múltiplas imagens com layout automático
+  // Adicionar múltiplas imagens no slide atual
   addMultipleImages(files: File[]): void {
+    const currentSlide = this.currentSlide();
+    if (!currentSlide) {
+      // Se não há slide, criar um primeiro
+      this.createSlide('layout-3-images-1-text');
+    }
+    
+    const slideId = this.currentSlideIdSignal();
+    if (!slideId) return;
+
+    // Pegar elementos existentes para calcular posição e zIndex
+    const slide = this.slidesSignal().find(s => s.id === slideId);
+    const existingElements = slide?.elements || [];
+    const maxZIndex = existingElements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
+
     // Criar array com arquivos e seus números de ordem
     const filesWithOrder = files.map(file => ({
       file,
@@ -792,31 +806,15 @@ export class SlideService {
     // Ordenar por número extraído do nome do arquivo
     filesWithOrder.sort((a, b) => a.orderNumber - b.orderNumber);
 
-    // Gerar posições de layout baseado na quantidade
-    const positions = this.generateLayoutPositions(files.length);
-
-    // Criar novo slide para as imagens
-    const slideId = this.generateId();
-    const newSlide: Slide = {
-      id: slideId,
-      name: `Slide ${this.slidesSignal().length + 1}`,
-      layoutId: 'custom-auto',
-      elements: [],
-      backgroundColor: '#ffffff',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    // Adicionar o slide
-    this.slidesSignal.update(slides => [...slides, newSlide]);
-    this.currentSlideIdSignal.set(slideId);
-
-    // Converter cada arquivo e adicionar na posição correta
+    // Converter cada arquivo e adicionar como novo elemento no slide atual
     filesWithOrder.forEach(({ file, orderNumber }, index) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const src = e.target?.result as string;
-        const position = positions[index] || { x: 5, y: 5, width: 20, height: 20 };
+        
+        // Posição padrão com offset para cada imagem não sobrepor
+        const offsetX = (index % 3) * 5;
+        const offsetY = Math.floor(index / 3) * 5;
         
         const newImage: ImageElement = {
           id: this.generateId(),
@@ -825,8 +823,13 @@ export class SlideService {
           alt: file.name,
           fit: 'cover',
           orderNumber,
-          position,
-          zIndex: index + 1,
+          position: {
+            x: 10 + offsetX,
+            y: 10 + offsetY,
+            width: 30,
+            height: 30
+          },
+          zIndex: maxZIndex + index + 1,
           border: DEFAULT_BORDER,
           shadow: DEFAULT_SHADOW,
           opacity: 1,
@@ -875,6 +878,78 @@ export class SlideService {
         };
       })
     );
+  }
+
+  // Adicionar imagem a partir de DataURL (usado pelo Google Photos)
+  addImageFromDataUrl(dataUrl: string, filename: string): void {
+    const slide = this.currentSlide();
+    if (!slide) return;
+
+    // Encontrar próximo slot de imagem vazio no slide
+    const imageElements = slide.elements.filter(e => {
+      if (e.type !== 'image') return false;
+      const imgElement = e as ImageElement;
+      return !imgElement.metadata?.['backgroundDecor'] && !imgElement.src;
+    });
+
+    if (imageElements.length > 0) {
+      // Preencher slot vazio existente
+      const targetElement = imageElements[0];
+      
+      this.slidesSignal.update(slides =>
+        slides.map(s => {
+          if (s.id !== slide.id) return s;
+          return {
+            ...s,
+            elements: s.elements.map(element => {
+              if (element.id === targetElement.id) {
+                return {
+                  ...element,
+                  src: dataUrl,
+                  alt: filename
+                } as ImageElement;
+              }
+              return element;
+            }),
+            updatedAt: new Date()
+          };
+        })
+      );
+    } else {
+      // Criar novo elemento de imagem
+      const existingImages = slide.elements.filter(e => 
+        e.type === 'image' && !e.metadata?.['backgroundDecor']
+      );
+      
+      const newImage: ImageElement = {
+        id: this.generateId(),
+        type: 'image',
+        src: dataUrl,
+        alt: filename,
+        fit: 'cover',
+        position: {
+          x: 5 + (existingImages.length % 3) * 32,
+          y: 5 + Math.floor(existingImages.length / 3) * 32,
+          width: 30,
+          height: 30
+        },
+        zIndex: slide.elements.length + 1,
+        border: DEFAULT_BORDER,
+        shadow: DEFAULT_SHADOW,
+        opacity: 1,
+        rotation: 0
+      };
+
+      this.slidesSignal.update(slides =>
+        slides.map(s => 
+          s.id === slide.id 
+            ? { ...s, elements: [...s.elements, newImage], updatedAt: new Date() }
+            : s
+        )
+      );
+    }
+    
+    this.saveToStorage();
   }
 
   // Aplicar layout a um slide existente
@@ -948,6 +1023,81 @@ export class SlideService {
     this.slidesSignal.update(slides =>
       slides.map(s => 
         s.id === slide.id 
+          ? { ...s, layoutId, elements: finalElements, updatedAt: new Date() }
+          : s
+      )
+    );
+  }
+
+  // Aplicar layout a um slide específico por ID
+  applyLayoutToSlide(slideId: string, layoutId: string): void {
+    const layout = this.layoutTemplates.find(l => l.id === layoutId);
+    const slide = this.slidesSignal().find(s => s.id === slideId);
+    
+    if (!layout || !slide) return;
+
+    // Preservar elementos de fundo decorativos
+    const backgroundElements = slide.elements.filter(e => e.metadata?.['backgroundDecor']);
+
+    // Preservar imagens existentes
+    const existingImages = slide.elements
+      .filter(e => e.type === 'image' && (e as ImageElement).src && !e.metadata?.['backgroundDecor'])
+      .map(e => (e as ImageElement).src);
+
+    // Preservar textos existentes com todas as propriedades
+    const existingTexts = slide.elements
+      .filter(e => e.type === 'text' && !e.metadata?.['backgroundDecor'])
+      .map(e => {
+        const textEl = e as TextElement;
+        return {
+          content: textEl.content,
+          fontSize: textEl.fontSize,
+          fontFamily: textEl.fontFamily,
+          fontWeight: textEl.fontWeight,
+          fontStyle: textEl.fontStyle,
+          color: textEl.color,
+          backgroundColor: textEl.backgroundColor,
+          textAlign: textEl.textAlign,
+          lineHeight: textEl.lineHeight,
+          border: textEl.border
+        };
+      });
+
+    // Criar novos elementos do layout
+    const newElements = this.createElementsFromLayout(layout);
+
+    // Reatribuir imagens e textos existentes
+    let imageIndex = 0;
+    let textIndex = 0;
+    
+    newElements.forEach(element => {
+      if (element.type === 'image' && imageIndex < existingImages.length) {
+        (element as ImageElement).src = existingImages[imageIndex];
+        imageIndex++;
+      } else if (element.type === 'text' && textIndex < existingTexts.length) {
+        const savedText = existingTexts[textIndex];
+        const textEl = element as TextElement;
+        textEl.content = savedText.content;
+        textEl.fontSize = savedText.fontSize;
+        textEl.fontFamily = savedText.fontFamily;
+        textEl.fontWeight = savedText.fontWeight;
+        textEl.fontStyle = savedText.fontStyle;
+        textEl.color = savedText.color;
+        textEl.backgroundColor = savedText.backgroundColor;
+        textEl.textAlign = savedText.textAlign;
+        textEl.lineHeight = savedText.lineHeight;
+        if (savedText.border) {
+          textEl.border = savedText.border;
+        }
+        textIndex++;
+      }
+    });
+
+    const finalElements = [...backgroundElements, ...newElements];
+
+    this.slidesSignal.update(slides =>
+      slides.map(s => 
+        s.id === slideId 
           ? { ...s, layoutId, elements: finalElements, updatedAt: new Date() }
           : s
       )
@@ -1295,7 +1445,6 @@ export class SlideService {
     photos: Array<{ orderNumber: number; dataUrl: string; name: string; targetSlide: number; slotInSlide: number }>,
     slideConfigs: Array<{ slideNumber: number; layoutId: string; exists: boolean; photos: any[] }>
   ): Promise<{ imported: number; slidesCreated: number }> {
-    const slides = this.slidesSignal();
     let imported = 0;
     let slidesCreated = 0;
 
@@ -1308,31 +1457,42 @@ export class SlideService {
       photosBySlide.set(photo.targetSlide, slidePhotos);
     }
 
-    // Processar cada slide
-    for (const [slideNumber, slidePhotos] of photosBySlide) {
+    // Processar cada slide na ordem
+    const slideNumbers = Array.from(photosBySlide.keys()).sort((a, b) => a - b);
+    
+    for (const slideNumber of slideNumbers) {
+      const slidePhotos = photosBySlide.get(slideNumber) || [];
       const slideIndex = slideNumber - 1;
       
+      // Obter slides atualizados (importante para pegar novos slides criados)
+      const currentSlides = this.slidesSignal();
+      
       // Verificar se o slide existe
-      if (slideIndex >= slides.length) {
-        // Slide não existe, já foi criado pelo componente
+      if (slideIndex >= currentSlides.length) {
         slidesCreated++;
+        continue; // Slide deveria ter sido criado antes
       }
 
-      // Obter o slide atualizado
-      const currentSlides = this.slidesSignal();
       const slide = currentSlides[slideIndex];
-      
       if (!slide) continue;
 
       // Ordenar fotos pelo slot
       const sortedPhotos = slidePhotos.sort((a, b) => a.slotInSlide - b.slotInSlide);
 
-      // Obter elementos de imagem do slide (não decorativos)
-      const imageElements = slide.elements.filter(e => {
-        if (e.type !== 'image') return false;
-        const imgElement = e as ImageElement;
-        return !imgElement.metadata?.['backgroundDecor'];
-      });
+      // Obter elementos de imagem do slide (não decorativos), ordenados por posição
+      const imageElements = slide.elements
+        .filter(e => {
+          if (e.type !== 'image') return false;
+          const imgElement = e as ImageElement;
+          return !imgElement.metadata?.['backgroundDecor'];
+        })
+        .sort((a, b) => {
+          // Ordenar por posição Y e depois X para manter ordem visual
+          if (a.position.y !== b.position.y) {
+            return a.position.y - b.position.y;
+          }
+          return a.position.x - b.position.x;
+        });
 
       // Atribuir fotos aos slots
       for (const photo of sortedPhotos) {
@@ -1363,9 +1523,14 @@ export class SlideService {
             })
           );
           imported++;
+        } else {
+          console.warn(`Slot ${photo.slotInSlide} não encontrado no slide ${slideNumber}`);
         }
       }
     }
+
+    // Salvar após todas as importações
+    this.saveToStorage();
 
     return { imported, slidesCreated };
   }

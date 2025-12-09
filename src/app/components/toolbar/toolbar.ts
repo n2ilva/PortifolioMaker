@@ -80,61 +80,114 @@ export class Toolbar {
     this.isExporting = true;
     const slides = this.slideService.slides();
     
-    // PDF em formato paisagem (16:9)
+    // Tamanho fixo do canvas em pixels (16:9)
+    const canvasWidth = 960;
+    const canvasHeight = 540;
+    
+    // PDF com tamanho EXATO do slide (em mm, convertendo de pixels)
+    // 1 pixel = 0.264583 mm (96 DPI)
+    const pxToMm = 0.264583;
+    const pdfWidthMm = canvasWidth * pxToMm;  // ~254mm
+    const pdfHeightMm = canvasHeight * pxToMm; // ~143mm
+    
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [297, 167] // A4 paisagem proporcional 16:9
+      format: [pdfWidthMm, pdfHeightMm] // Tamanho customizado igual ao slide
     });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-
-    // Salvar slide atual
+    // Salvar estado atual
     const currentSlideId = this.slideService.currentSlideId();
+    const currentZoom = this.slideService.zoom();
+    
+    // Resetar zoom
+    this.slideService.setZoom(100);
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       for (let i = 0; i < slides.length; i++) {
-        // Selecionar o slide para renderização
         this.slideService.selectSlide(slides[i].id);
-        
-        // Aguardar um momento para o DOM atualizar
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Capturar o canvas do slide
-        const slideCanvas = document.querySelector('.slide-canvas-content') as HTMLElement;
+        const slideCanvas = document.querySelector('.canvas-wrapper .canvas') as HTMLElement;
         
         if (slideCanvas) {
-          const canvas = await html2canvas(slideCanvas, {
+          // Criar container temporário fora da tela com tamanho fixo
+          const tempContainer = document.createElement('div');
+          tempContainer.style.cssText = `
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: ${canvasWidth}px;
+            height: ${canvasHeight}px;
+            overflow: hidden;
+            background: ${slides[i].backgroundColor || '#ffffff'};
+          `;
+          
+          // Clonar o canvas
+          const clonedCanvas = slideCanvas.cloneNode(true) as HTMLElement;
+          clonedCanvas.style.cssText = `
+            width: ${canvasWidth}px !important;
+            height: ${canvasHeight}px !important;
+            min-width: ${canvasWidth}px !important;
+            min-height: ${canvasHeight}px !important;
+            max-width: ${canvasWidth}px !important;
+            max-height: ${canvasHeight}px !important;
+            transform: none !important;
+            position: relative;
+            background: ${slides[i].backgroundColor || '#ffffff'};
+          `;
+          
+          // Remover elementos de UI do clone
+          clonedCanvas.querySelectorAll('.selected, .hovered').forEach(el => {
+            el.classList.remove('selected', 'hovered');
+          });
+          clonedCanvas.querySelectorAll('.alignment-guide, .resize-handle').forEach(el => el.remove());
+          
+          tempContainer.appendChild(clonedCanvas);
+          document.body.appendChild(tempContainer);
+          
+          // Aguardar renderização
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Capturar
+          const canvas = await html2canvas(clonedCanvas, {
+            width: canvasWidth,
+            height: canvasHeight,
             scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: null,
+            backgroundColor: slides[i].backgroundColor || '#ffffff',
             logging: false
           });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          
+          // Remover container temporário
+          document.body.removeChild(tempContainer);
+          
+          const imgData = canvas.toDataURL('image/png', 1.0);
           
           if (i > 0) {
-            pdf.addPage();
+            pdf.addPage([pdfWidthMm, pdfHeightMm]);
           }
           
-          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+          // Adicionar imagem preenchendo toda a página (sem margens)
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
         }
       }
 
-      // Restaurar slide original
+      // Restaurar estado
       if (currentSlideId) {
         this.slideService.selectSlide(currentSlideId);
       }
+      this.slideService.setZoom(currentZoom);
 
-      // Baixar o PDF
       const date = new Date().toISOString().slice(0, 10);
       pdf.save(`portfolio-${date}.pdf`);
       
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
       alert('Erro ao exportar PDF. Tente novamente.');
+      this.slideService.setZoom(currentZoom);
     } finally {
       this.isExporting = false;
     }

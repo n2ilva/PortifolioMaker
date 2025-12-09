@@ -2,15 +2,18 @@ import { Component, inject, ViewChild, ElementRef, Output, EventEmitter } from '
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
+import { GooglePhotosService, GooglePhoto, GoogleAlbum } from '../../services/google-photos.service';
 import { LayoutTemplate } from '../../models/slide.model';
 
 export interface PhotoFile {
-  file: File;
+  file: File | null;
   name: string;
   orderNumber: number;
   dataUrl: string;
   targetSlide: number;      // Número do slide destino (1, 2, 3...)
   slotInSlide: number;      // Posição no slide (1, 2, 3...)
+  fromGoogle?: boolean;     // Se veio do Google Fotos
+  googlePhoto?: GooglePhoto; // Referência à foto do Google
 }
 
 export interface SlideConfig {
@@ -32,6 +35,7 @@ export interface SlideConfig {
 })
 export class PhotoImportComponent {
   slideService = inject(SlideService);
+  googlePhotos = inject(GooglePhotosService);
   
   @ViewChild('folderInput') folderInput!: ElementRef<HTMLInputElement>;
   @Output() close = new EventEmitter<void>();
@@ -43,6 +47,11 @@ export class PhotoImportComponent {
   isProcessing = false;
   errorMessage = '';
   successMessage = '';
+
+  // Google Photos
+  showGooglePhotos = false;
+  googleView: 'albums' | 'photos' | 'all-photos' = 'albums';
+  selectedAlbum: GoogleAlbum | null = null;
 
   // Layout padrão para novos slides
   defaultLayoutId = 'layout-3-images-1-text';
@@ -57,6 +66,9 @@ export class PhotoImportComponent {
     this.slideConfigs = [];
     this.errorMessage = '';
     this.successMessage = '';
+    this.showGooglePhotos = false;
+    this.googleView = 'albums';
+    this.selectedAlbum = null;
     this.initializeSlideConfigs();
   }
 
@@ -64,6 +76,8 @@ export class PhotoImportComponent {
     this.isVisible = false;
     this.photos = [];
     this.slideConfigs = [];
+    this.showGooglePhotos = false;
+    this.googlePhotos.clearSelection();
     this.close.emit();
   }
 
@@ -183,10 +197,11 @@ export class PhotoImportComponent {
   autoDistributePhotos(): void {
     const sortedPhotos = [...this.photos].sort((a, b) => a.orderNumber - b.orderNumber);
     
+    // Limpar fotos de todas as configs
+    this.slideConfigs.forEach(config => config.photos = []);
+    
     let photoIndex = 0;
     let slideNumber = 1;
-    
-    this.slideConfigs.forEach(config => config.photos = []);
     
     while (photoIndex < sortedPhotos.length) {
       let config = this.slideConfigs.find(c => c.slideNumber === slideNumber);
@@ -235,18 +250,46 @@ export class PhotoImportComponent {
 
   onPhotoSlideChange(photo: PhotoFile, event: Event): void {
     const newSlide = parseInt((event.target as HTMLSelectElement).value, 10);
-    photo.targetSlide = newSlide;
+    const oldSlide = photo.targetSlide;
     
-    let config = this.slideConfigs.find(c => c.slideNumber === newSlide);
-    if (!config) {
-      config = this.addNewSlideConfig(newSlide);
+    // Criar config do novo slide se não existir
+    let newConfig = this.slideConfigs.find(c => c.slideNumber === newSlide);
+    if (!newConfig) {
+      newConfig = this.addNewSlideConfig(newSlide);
     }
     
+    // Encontrar próxima posição disponível no novo slide
+    const photosInNewSlide = this.photos.filter(p => p !== photo && p.targetSlide === newSlide);
+    const usedSlots = photosInNewSlide.map(p => p.slotInSlide);
+    let nextSlot = 1;
+    while (usedSlots.includes(nextSlot) && nextSlot <= newConfig.imageSlots) {
+      nextSlot++;
+    }
+    
+    // Atualizar foto
+    photo.targetSlide = newSlide;
+    photo.slotInSlide = Math.min(nextSlot, newConfig.imageSlots);
+    
+    // Reorganizar
     this.reorganizePhotosInSlides();
   }
 
   onPhotoSlotChange(photo: PhotoFile, event: Event): void {
-    photo.slotInSlide = parseInt((event.target as HTMLSelectElement).value, 10);
+    const newSlot = parseInt((event.target as HTMLSelectElement).value, 10);
+    const config = this.slideConfigs.find(c => c.slideNumber === photo.targetSlide);
+    
+    if (config) {
+      // Verificar se a posição já está ocupada por outra foto
+      const photoInSlot = config.photos.find(p => p !== photo && p.slotInSlide === newSlot);
+      
+      if (photoInSlot) {
+        // Trocar posições
+        photoInSlot.slotInSlide = photo.slotInSlide;
+      }
+      
+      photo.slotInSlide = newSlot;
+      this.reorganizePhotosInSlides();
+    }
   }
 
   onPhotoOrderChange(photo: PhotoFile, event: Event): void {
@@ -256,11 +299,69 @@ export class PhotoImportComponent {
 
   onSlideLayoutChange(config: SlideConfig, event: Event): void {
     const layoutId = (event.target as HTMLSelectElement).value;
+    const oldImageSlots = config.imageSlots;
+    
     config.layoutId = layoutId;
     const layout = this.layouts.find(l => l.id === layoutId);
     config.layoutName = layout?.name || 'Personalizado';
     config.imageSlots = this.countImageSlotsInLayout(layoutId);
-    this.autoDistributePhotos();
+    
+    // Se o novo layout tem menos slots, redistribuir excedentes
+    if (config.imageSlots < oldImageSlots) {
+      this.redistributeExcessPhotos(config);
+    }
+    
+    // Reorganizar para atualizar as posições
+    this.reorganizePhotosInSlides();
+  }
+
+  private redistributeExcessPhotos(changedConfig: SlideConfig): void {
+    // Pegar fotos que estão neste slide, ordenadas por slot
+    const photosInSlide = this.photos
+      .filter(p => p.targetSlide === changedConfig.slideNumber)
+      .sort((a, b) => a.slotInSlide - b.slotInSlide);
+    
+    const slotsAvailable = changedConfig.imageSlots;
+    
+    // Fotos que cabem no slide
+    const photosToKeep = photosInSlide.slice(0, slotsAvailable);
+    // Fotos excedentes
+    const excessPhotos = photosInSlide.slice(slotsAvailable);
+    
+    // Atualizar posições das fotos que ficam
+    photosToKeep.forEach((photo, index) => {
+      photo.slotInSlide = index + 1;
+    });
+    
+    // Mover excedentes para próximos slides
+    let nextSlideNumber = changedConfig.slideNumber + 1;
+    
+    for (const photo of excessPhotos) {
+      let targetConfig = this.slideConfigs.find(c => c.slideNumber === nextSlideNumber);
+      
+      if (!targetConfig) {
+        targetConfig = this.addNewSlideConfig(nextSlideNumber);
+      }
+      
+      // Contar fotos já no slide destino
+      const photosInTarget = this.photos.filter(p => p !== photo && p.targetSlide === nextSlideNumber);
+      
+      if (photosInTarget.length >= targetConfig.imageSlots) {
+        // Slide cheio, ir para o próximo
+        nextSlideNumber++;
+        targetConfig = this.addNewSlideConfig(nextSlideNumber);
+      }
+      
+      // Encontrar próxima posição disponível
+      const usedSlots = photosInTarget.map(p => p.slotInSlide);
+      let nextSlot = 1;
+      while (usedSlots.includes(nextSlot)) {
+        nextSlot++;
+      }
+      
+      photo.targetSlide = nextSlideNumber;
+      photo.slotInSlide = nextSlot;
+    }
   }
 
   private reorganizePhotosInSlides(): void {
@@ -313,6 +414,7 @@ export class PhotoImportComponent {
     this.errorMessage = '';
 
     try {
+      // 1. Primeiro, criar novos slides na ordem correta
       const slidesToCreate = this.slideConfigs
         .filter(c => !c.exists && c.photos.length > 0)
         .sort((a, b) => a.slideNumber - b.slideNumber);
@@ -322,6 +424,21 @@ export class PhotoImportComponent {
         config.exists = true;
       }
 
+      // 2. Aplicar layouts modificados em slides existentes
+      const existingSlides = this.slideService.slides();
+      for (const config of this.slideConfigs) {
+        if (config.exists && config.photos.length > 0) {
+          const slideIndex = config.slideNumber - 1;
+          const slide = existingSlides[slideIndex];
+          
+          if (slide && slide.layoutId !== config.layoutId) {
+            // Aplicar novo layout ao slide existente
+            this.slideService.applyLayoutToSlide(slide.id, config.layoutId);
+          }
+        }
+      }
+
+      // 3. Importar fotos nos slots corretos
       const result = await this.slideService.importPhotosToSlidesAdvanced(this.photos, this.slideConfigs);
       
       this.successMessage = `${result.imported} foto(s) importada(s) com sucesso!`;
@@ -352,5 +469,124 @@ export class PhotoImportComponent {
 
   getSlidesWithPhotos(): SlideConfig[] {
     return this.slideConfigs.filter(c => c.photos.length > 0);
+  }
+
+  // ========== Google Photos Methods ==========
+
+  toggleGooglePhotos(): void {
+    this.showGooglePhotos = !this.showGooglePhotos;
+    if (this.showGooglePhotos && this.googlePhotos.isAuthenticated()) {
+      this.googlePhotos.fetchAlbums();
+    }
+  }
+
+  async onGoogleLogin(): Promise<void> {
+    await this.googlePhotos.login();
+    
+    setTimeout(() => {
+      if (this.googlePhotos.isAuthenticated()) {
+        this.googlePhotos.fetchAlbums();
+      }
+    }, 1000);
+  }
+
+  onGoogleLogout(): void {
+    this.googlePhotos.logout();
+    this.googleView = 'albums';
+    this.selectedAlbum = null;
+  }
+
+  onSelectAlbum(album: GoogleAlbum): void {
+    this.selectedAlbum = album;
+    this.googleView = 'photos';
+    this.googlePhotos.fetchPhotosFromAlbum(album.id);
+  }
+
+  onShowAllGooglePhotos(): void {
+    this.selectedAlbum = null;
+    this.googleView = 'all-photos';
+    this.googlePhotos.fetchAllPhotos();
+  }
+
+  onBackToAlbums(): void {
+    this.googleView = 'albums';
+    this.selectedAlbum = null;
+    this.googlePhotos.photos.set([]);
+  }
+
+  onToggleGooglePhoto(photo: GooglePhoto): void {
+    this.googlePhotos.togglePhotoSelection(photo.id);
+  }
+
+  getGoogleSelectedCount(): number {
+    return this.googlePhotos.getSelectedPhotos().length;
+  }
+
+  selectAllGooglePhotos(): void {
+    const photos = this.googlePhotos.photos();
+    photos.forEach(p => {
+      if (!p.selected) {
+        this.googlePhotos.togglePhotoSelection(p.id);
+      }
+    });
+  }
+
+  deselectAllGooglePhotos(): void {
+    this.googlePhotos.clearSelection();
+  }
+
+  async addGooglePhotosToImport(): Promise<void> {
+    const selectedPhotos = this.googlePhotos.getSelectedPhotos();
+    
+    if (selectedPhotos.length === 0) {
+      this.errorMessage = 'Selecione pelo menos uma foto do Google Fotos.';
+      return;
+    }
+
+    this.isProcessing = true;
+    this.errorMessage = '';
+
+    try {
+      const startOrder = this.photos.length + 1;
+      
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const gPhoto = selectedPhotos[i];
+        
+        // Baixar a foto como DataURL
+        const dataUrl = await this.googlePhotos.downloadPhotoAsDataUrl(gPhoto);
+        
+        const photoFile: PhotoFile = {
+          file: null,
+          name: gPhoto.filename,
+          orderNumber: startOrder + i,
+          dataUrl,
+          targetSlide: 1,
+          slotInSlide: 1,
+          fromGoogle: true,
+          googlePhoto: gPhoto
+        };
+        
+        this.photos.push(photoFile);
+      }
+
+      // Ordenar e redistribuir
+      this.photos.sort((a, b) => a.orderNumber - b.orderNumber);
+      this.autoDistributePhotos();
+      
+      // Limpar seleção e voltar
+      this.googlePhotos.clearSelection();
+      this.showGooglePhotos = false;
+      
+      this.successMessage = `${selectedPhotos.length} foto(s) do Google Fotos adicionada(s)!`;
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
+      
+    } catch (error) {
+      this.errorMessage = 'Erro ao carregar fotos do Google. Tente novamente.';
+      console.error('Erro ao carregar Google Photos:', error);
+    }
+
+    this.isProcessing = false;
   }
 }
