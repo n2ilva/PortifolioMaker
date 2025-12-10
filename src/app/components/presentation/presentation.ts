@@ -139,21 +139,17 @@ export class PresentationComponent {
       left: `${element.position.x}%`,
       top: `${element.position.y}%`,
       width: `${element.position.width}%`,
+      height: `${element.position.height}%`,
       'z-index': `${element.zIndex}`
     };
-
-    if (element.type === 'text') {
-      styles['height'] = 'auto';
-    } else {
-      styles['height'] = `${element.position.height}%`;
-    }
 
     if (element.border?.radius) {
       styles['border-radius'] = `${element.border.radius}px`;
     }
 
-    if (element.opacity !== undefined && element.opacity !== 1) {
-      styles['opacity'] = `${element.opacity}`;
+    // Opacity é armazenado como 0-100, converter para 0-1
+    if (element.opacity !== undefined && element.opacity !== 100) {
+      styles['opacity'] = `${element.opacity / 100}`;
     }
 
     if (element.rotation) {
