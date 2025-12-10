@@ -16,7 +16,7 @@
         [class.background-element]="element.metadata?.['backgroundDecor']"
         [ngStyle]="getElementStyle(element)"
       >
-        <img [src]="element.src" [alt]="element.alt" [ngStyle]="getImageStyle(element)">
+        <img [src]="element.src" [alt]="element.alt" [title]="element.alt || 'Imagem'" [ngStyle]="getImageStyle(element)">
       </div>
       
       <!-- Text Element -->

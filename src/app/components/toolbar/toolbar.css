@@ -8,6 +8,10 @@
   min-height: 60px;
 }
 
+.hidden-input {
+  display: none;
+}
+
 .toolbar-left,
 .toolbar-center,
 .toolbar-right {
@@ -134,4 +138,48 @@
   background: linear-gradient(135deg, #ff7f4d 0%, #ffaa33 100%);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+}
+
+/* Google User Info */
+.google-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-left: 10px;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #00d5ff;
+}
+
+.user-name-small {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout-small {
+  padding: 5px 10px;
+  font-size: 12px;
+  background: rgba(255, 100, 100, 0.3);
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  color: #ff9999;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-logout-small:hover {
+  background: rgba(255, 100, 100, 0.5);
+  color: #fff;
 }

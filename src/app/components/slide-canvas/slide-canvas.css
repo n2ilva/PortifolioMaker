@@ -47,6 +47,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 

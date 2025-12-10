@@ -13,7 +13,8 @@
       multiple 
       accept="image/*" 
       (change)="onFilesSelected($event)"
-      style="display: none"
+      class="hidden-input"
+      title="Selecionar fotos"
     >
 
     <button class="btn btn-secondary" (click)="onImportBatch()">
@@ -57,6 +58,18 @@
   </div>
   
   <div class="toolbar-right">
+    @if (googlePhotos.isAuthenticated()) {
+      <div class="google-user-info">
+        @if (googlePhotos.userInfo(); as user) {
+          <img [src]="user.picture" [alt]="user.name" [title]="user.name" class="user-avatar-small">
+          <span class="user-name-small">{{ user.name }}</span>
+        }
+        <button class="btn btn-logout-small" (click)="onGoogleLogout()" title="Sair do Google">
+          Sair
+        </button>
+      </div>
+      <div class="separator"></div>
+    }
     <button class="btn btn-presentation" (click)="onStartPresentation()" title="Iniciar apresentação (F5)">
       ▶ Apresentar
     </button>

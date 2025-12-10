@@ -10,6 +10,7 @@ export interface GooglePhoto {
   width: number;
   height: number;
   selected?: boolean;
+  thumbnailLink?: string;
 }
 
 export interface GoogleAlbum {
@@ -24,9 +25,9 @@ export interface GoogleAlbum {
 })
 export class GooglePhotosService {
   private readonly CLIENT_ID = '1093612348738-43kgglh5k9v19nmv04uhf9nufjrljugo.apps.googleusercontent.com';
-  // Escopos necessários: biblioteca de fotos + info do usuário
+  // Usando Google Drive API (mais acessível que Photos Library API)
   private readonly SCOPES = [
-    'https://www.googleapis.com/auth/photoslibrary.readonly',
+    'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email'
   ].join(' ');
@@ -42,8 +43,45 @@ export class GooglePhotosService {
   albums = signal<GoogleAlbum[]>([]);
   photos = signal<GooglePhoto[]>([]);
   
+  private readonly TOKEN_KEY = 'google_photos_token';
+  private readonly USER_KEY = 'google_photos_user';
+  
   constructor() {
+    this.loadFromStorage();
     this.loadGoogleApi();
+  }
+  
+  private loadFromStorage(): void {
+    const savedToken = localStorage.getItem(this.TOKEN_KEY);
+    const savedUser = localStorage.getItem(this.USER_KEY);
+    
+    if (savedToken) {
+      this.accessToken = savedToken;
+      this.isAuthenticated.set(true);
+      
+      if (savedUser) {
+        try {
+          this.userInfo.set(JSON.parse(savedUser));
+        } catch (e) {
+          console.error('Erro ao carregar usuário salvo');
+        }
+      }
+    }
+  }
+  
+  private saveToStorage(): void {
+    if (this.accessToken) {
+      localStorage.setItem(this.TOKEN_KEY, this.accessToken);
+    }
+    const user = this.userInfo();
+    if (user) {
+      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    }
+  }
+  
+  private clearStorage(): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.USER_KEY);
   }
 
   private loadGoogleApi(): void {
@@ -70,7 +108,7 @@ export class GooglePhotosService {
           if (response.access_token) {
             this.accessToken = response.access_token;
             this.isAuthenticated.set(true);
-            this.fetchUserInfo();
+            this.fetchUserInfo().then(() => this.saveToStorage());
             console.log('Google Photos: Login bem sucedido, escopos:', response.scope);
           } else if (response.error) {
             console.error('Google Photos: Erro no login:', response.error);
@@ -102,13 +140,14 @@ export class GooglePhotosService {
       });
     }
     
-    // Limpar estado local
+    // Limpar estado local e storage
     this.accessToken = null;
     this.isAuthenticated.set(false);
     this.userInfo.set(null);
     this.albums.set([]);
     this.photos.set([]);
     this.error.set(null);
+    this.clearStorage();
     
     // Reinicializar cliente para garantir novos escopos no próximo login
     this.initializeGoogleClient();
@@ -143,18 +182,28 @@ export class GooglePhotosService {
     this.isLoading.set(true);
     
     try {
-      const response = await fetch('https://photoslibrary.googleapis.com/v1/albums?pageSize=50', {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`
+      // Usando Google Drive API - buscar pastas que contêm imagens
+      const response = await fetch(
+        "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder'&pageSize=50&fields=files(id,name,thumbnailLink)",
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`
+          }
         }
-      });
+      );
       
       if (response.ok) {
         const data = await response.json();
-        this.albums.set(data.albums || []);
+        const albums = (data.files || []).map((folder: any) => ({
+          id: folder.id,
+          title: folder.name,
+          coverPhotoBaseUrl: folder.thumbnailLink || '',
+          mediaItemsCount: '0'
+        }));
+        this.albums.set(albums);
       }
     } catch (error) {
-      console.error('Erro ao buscar álbuns:', error);
+      console.error('Erro ao buscar pastas:', error);
     } finally {
       this.isLoading.set(false);
     }
@@ -166,36 +215,33 @@ export class GooglePhotosService {
     this.isLoading.set(true);
     
     try {
-      const response = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems:search', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          albumId,
-          pageSize: 100
-        })
-      });
+      // Usando Google Drive API - buscar imagens dentro de uma pasta
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='${albumId}'+in+parents+and+(mimeType+contains+'image/')&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`
+          }
+        }
+      );
       
       if (response.ok) {
         const data = await response.json();
-        const photos = (data.mediaItems || [])
-          .filter((item: any) => item.mimeType?.startsWith('image/'))
-          .map((item: any) => ({
-            id: item.id,
-            baseUrl: item.baseUrl,
-            filename: item.filename,
-            mimeType: item.mimeType,
-            width: parseInt(item.mediaMetadata?.width || '0'),
-            height: parseInt(item.mediaMetadata?.height || '0'),
-            selected: false
-          }));
+        const photos = (data.files || []).map((file: any) => ({
+          id: file.id,
+          baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+          filename: file.name,
+          mimeType: file.mimeType,
+          width: file.imageMediaMetadata?.width || 800,
+          height: file.imageMediaMetadata?.height || 600,
+          selected: false,
+          thumbnailLink: file.thumbnailLink
+        }));
         
         this.photos.set(photos);
       }
     } catch (error) {
-      console.error('Erro ao buscar fotos:', error);
+      console.error('Erro ao buscar fotos da pasta:', error);
     } finally {
       this.isLoading.set(false);
     }
@@ -203,61 +249,64 @@ export class GooglePhotosService {
 
   async fetchAllPhotos(): Promise<void> {
     if (!this.accessToken) {
-      console.error('Google Photos: Sem token de acesso');
+      console.error('Google Drive: Sem token de acesso');
       return;
     }
     
     this.isLoading.set(true);
     this.error.set(null);
-    console.log('Google Photos: Buscando todas as fotos...');
+    console.log('Google Drive: Buscando todas as imagens...');
     
     try {
-      const response = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems?pageSize=100', {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`
+      // Usando Google Drive API - buscar todas as imagens
+      const response = await fetch(
+        "https://www.googleapis.com/drive/v3/files?q=mimeType+contains+'image/'&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)",
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`
+          }
         }
-      });
+      );
       
-      console.log('Google Photos: Status da resposta:', response.status);
+      console.log('Google Drive: Status da resposta:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Google Photos: Dados recebidos:', data);
+        console.log('Google Drive: Dados recebidos:', data);
         
-        const photos = (data.mediaItems || [])
-          .filter((item: any) => item.mimeType?.startsWith('image/'))
-          .map((item: any) => ({
-            id: item.id,
-            baseUrl: item.baseUrl,
-            filename: item.filename,
-            mimeType: item.mimeType,
-            width: parseInt(item.mediaMetadata?.width || '0'),
-            height: parseInt(item.mediaMetadata?.height || '0'),
-            selected: false
-          }));
+        const photos = (data.files || []).map((file: any) => ({
+          id: file.id,
+          baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+          filename: file.name,
+          mimeType: file.mimeType,
+          width: file.imageMediaMetadata?.width || 800,
+          height: file.imageMediaMetadata?.height || 600,
+          selected: false,
+          thumbnailLink: file.thumbnailLink
+        }));
         
-        console.log('Google Photos: Total de fotos encontradas:', photos.length);
+        console.log('Google Drive: Total de imagens encontradas:', photos.length);
         this.photos.set(photos);
         
         if (photos.length === 0) {
-          this.error.set('Nenhuma foto encontrada na sua biblioteca.');
+          this.error.set('Nenhuma imagem encontrada no seu Google Drive.');
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Google Photos: Erro na resposta:', response.status, errorData);
+        const errorMessage = errorData.error?.message || 'Erro desconhecido';
+        console.error('Google Drive: Erro na resposta:', response.status, errorMessage, errorData);
         
         if (response.status === 403) {
-          // Qualquer erro 403 significa problema de configuração no Google Cloud
-          this.error.set('Erro 403: A Photos Library API precisa ser habilitada no Google Cloud Console. Clique no link abaixo.');
+          this.error.set(`Erro 403: ${errorMessage}`);
         } else if (response.status === 401) {
           this.error.set('Sessão expirada. Faça login novamente.');
           this.logout();
         } else {
-          this.error.set(`Erro ao carregar fotos (${response.status})`);
+          this.error.set(`Erro ao carregar imagens (${response.status})`);
         }
       }
     } catch (error) {
-      console.error('Google Photos: Erro ao buscar fotos:', error);
+      console.error('Google Drive: Erro ao buscar imagens:', error);
       this.error.set('Erro de conexão. Verifique sua internet.');
     } finally {
       this.isLoading.set(false);
@@ -282,25 +331,22 @@ export class GooglePhotosService {
     );
   }
 
-  // Converter foto do Google para DataURL para usar nos slides
-  // Limita o tamanho para melhor performance (max 1920px no maior lado)
+  // Converter foto do Google Drive para DataURL para usar nos slides
   async downloadPhotoAsDataUrl(photo: GooglePhoto, maxSize: number = 1920): Promise<string> {
-    // Calcular dimensões mantendo aspect ratio
-    let width = photo.width;
-    let height = photo.height;
-    
-    if (width > height && width > maxSize) {
-      height = Math.round((height * maxSize) / width);
-      width = maxSize;
-    } else if (height > maxSize) {
-      width = Math.round((width * maxSize) / height);
-      height = maxSize;
-    }
-    
-    const imageUrl = `${photo.baseUrl}=w${width}-h${height}`;
+    // Usar a API do Drive para baixar o arquivo
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
     
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       
       return new Promise((resolve, reject) => {

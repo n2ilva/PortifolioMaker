@@ -1,16 +1,19 @@
 import { Component, inject, ElementRef, ViewChild, Output, EventEmitter } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
+import { GooglePhotosService } from '../../services/google-photos.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 @Component({
   selector: 'app-toolbar',
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './toolbar.html',
   styleUrl: './toolbar.css'
 })
 export class Toolbar {
   slideService = inject(SlideService);
+  googlePhotos = inject(GooglePhotosService);
   
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @Output() openBatchImport = new EventEmitter<void>();
@@ -191,5 +194,9 @@ export class Toolbar {
     } finally {
       this.isExporting = false;
     }
+  }
+
+  onGoogleLogout(): void {
+    this.googlePhotos.logout();
   }
 }

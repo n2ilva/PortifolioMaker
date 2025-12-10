@@ -9,7 +9,12 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
+}
+
+.hidden-input {
+  display: none;
 }
 
 .photo-import-modal {

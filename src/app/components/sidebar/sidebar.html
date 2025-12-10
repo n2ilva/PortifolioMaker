@@ -107,6 +107,7 @@
                       [class.active]="$any(selectedElement).color === color.value"
                       (click)="onTextColorSelect(color.value)"
                       [title]="color.name"
+                      [attr.aria-label]="'Cor ' + color.name"
                     ></button>
                   }
                 </div>
@@ -149,6 +150,7 @@
                       [class.active]="$any(selectedElement).backgroundColor === color.value"
                       (click)="onTextBackgroundSelect(color.value)"
                       [title]="color.name"
+                      [attr.aria-label]="'Fundo ' + color.name"
                     ></button>
                   }
                 </div>
@@ -395,6 +397,7 @@
               accept="image/*"
               class="file-input"
               (change)="onNewImageFileSelect($event)"
+              title="Selecionar imagem"
             >
           </div>
         </div>

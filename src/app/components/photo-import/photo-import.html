@@ -69,7 +69,7 @@
             <!-- User Info -->
             <div class="google-user-bar">
               @if (googlePhotos.userInfo(); as user) {
-                <img [src]="user.picture" [alt]="user.name" class="user-avatar">
+                <img [src]="user.picture" [alt]="user.name" [title]="user.name" class="user-avatar">
                 <span class="user-name">{{ user.name }}</span>
               }
               <button class="btn-logout" (click)="onGoogleLogout()">Sair</button>
@@ -102,7 +102,7 @@
                 <span class="error-icon">⚠️</span>
                 <p>{{ googlePhotos.error() }}</p>
                 @if (googlePhotos.error()?.includes('API')) {
-                  <a href="https://console.cloud.google.com/apis/library/photoslibrary.googleapis.com" target="_blank" class="error-link">
+                  <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener" class="error-link">
                     Abrir Google Cloud Console
                   </a>
                 }
@@ -115,7 +115,7 @@
                 @for (album of googlePhotos.albums(); track album.id) {
                   <div class="album-card" (click)="onSelectAlbum(album)">
                     @if (album.coverPhotoBaseUrl) {
-                      <img [src]="album.coverPhotoBaseUrl + '=w150-h150-c'" [alt]="album.title">
+                      <img [src]="album.coverPhotoBaseUrl + '=w150-h150-c'" [alt]="album.title" [title]="album.title">
                     } @else {
                       <div class="no-cover">📁</div>
                     }
@@ -171,7 +171,8 @@
         multiple 
         accept="image/*"
         (change)="onFilesSelected($event)"
-        style="display: none"
+        class="hidden-input"
+        title="Selecionar fotos"
       >
 
       <!-- Mensagens -->
@@ -238,7 +239,7 @@
               <div class="photos-in-slide">
                 @for (photo of config.photos; track photo.orderNumber) {
                   <div class="photo-config-item">
-                    <img [src]="photo.dataUrl" [alt]="photo.name" class="photo-thumb">
+                    <img [src]="photo.dataUrl" [alt]="photo.name" [title]="photo.name" class="photo-thumb">
                     
                     <div class="photo-details">
                       <div class="photo-name-row">
