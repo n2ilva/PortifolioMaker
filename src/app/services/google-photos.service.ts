@@ -179,9 +179,13 @@ export class GooglePhotosService {
   }
 
   async fetchAllPhotos(): Promise<void> {
-    if (!this.accessToken) return;
+    if (!this.accessToken) {
+      console.error('Google Photos: Sem token de acesso');
+      return;
+    }
     
     this.isLoading.set(true);
+    console.log('Google Photos: Buscando todas as fotos...');
     
     try {
       const response = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems?pageSize=100', {
@@ -190,8 +194,12 @@ export class GooglePhotosService {
         }
       });
       
+      console.log('Google Photos: Status da resposta:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Google Photos: Dados recebidos:', data);
+        
         const photos = (data.mediaItems || [])
           .filter((item: any) => item.mimeType?.startsWith('image/'))
           .map((item: any) => ({
@@ -204,10 +212,14 @@ export class GooglePhotosService {
             selected: false
           }));
         
+        console.log('Google Photos: Total de fotos encontradas:', photos.length);
         this.photos.set(photos);
+      } else {
+        const errorText = await response.text();
+        console.error('Google Photos: Erro na resposta:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Erro ao buscar fotos:', error);
+      console.error('Google Photos: Erro ao buscar fotos:', error);
     } finally {
       this.isLoading.set(false);
     }
