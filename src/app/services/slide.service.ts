@@ -13,12 +13,18 @@ import { LAYOUT_TEMPLATES } from '../models/layouts.data';
 
 // Chave para localStorage
 const STORAGE_KEY = 'portifolio-maker-data';
+const SETTINGS_KEY = 'portifolio-maker-settings';
 
 // Interface para dados persistidos
 interface PersistedData {
   slides: Slide[];
   currentSlideId: string | null;
   version: number;
+}
+
+// Interface para configurações persistidas
+interface PersistedSettings {
+  showGridGuides: boolean;
 }
 
 // Valores padrão para novos elementos
@@ -78,6 +84,9 @@ export class SlideService {
   private readonly SNAP_THRESHOLD = 1.5;
 
   constructor() {
+    // Carregar configurações do usuário
+    this.loadSettings();
+    
     // Tentar carregar dados salvos
     const loaded = this.loadFromStorage();
     
@@ -593,7 +602,7 @@ export class SlideService {
           type: 'image' as const,
           src: '',
           alt: `Imagem ${index + 1}`,
-          fit: 'contain' as const
+          fit: 'cover' as const
         };
       } else {
         return {
@@ -703,7 +712,7 @@ export class SlideService {
         type: 'image',
         src,
         alt: 'Nova imagem',
-        fit: 'contain',
+        fit: 'cover',
         orderNumber,
         position: { x: 10, y: 10, width: 30, height: 30 },
         zIndex: slide.elements.length + 1,
@@ -883,7 +892,7 @@ export class SlideService {
           type: 'image',
           src,
           alt: file.name,
-          fit: 'contain',
+          fit: 'cover',
           orderNumber,
           position: {
             x: 10 + offsetX,
@@ -1053,7 +1062,7 @@ export class SlideService {
         type: 'image',
         src: dataUrl,
         alt: filename,
-        fit: 'contain',
+        fit: 'cover',
         position: {
           x: 5 + (existingImages.length % 3) * 32,
           y: 5 + Math.floor(existingImages.length / 3) * 32,
@@ -1365,11 +1374,40 @@ export class SlideService {
   // Toggle visibilidade das linhas de grade
   toggleGridGuides(): void {
     this.showGridGuidesSignal.update(v => !v);
+    this.saveSettings();
   }
 
   // Definir visibilidade das linhas de grade
   setGridGuidesVisible(visible: boolean): void {
     this.showGridGuidesSignal.set(visible);
+    this.saveSettings();
+  }
+
+  // Salvar configurações do usuário
+  private saveSettings(): void {
+    try {
+      const settings: PersistedSettings = {
+        showGridGuides: this.showGridGuidesSignal()
+      };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.warn('Erro ao salvar configurações:', error);
+    }
+  }
+
+  // Carregar configurações do usuário
+  private loadSettings(): void {
+    try {
+      const stored = localStorage.getItem(SETTINGS_KEY);
+      if (stored) {
+        const settings: PersistedSettings = JSON.parse(stored);
+        if (typeof settings.showGridGuides === 'boolean') {
+          this.showGridGuidesSignal.set(settings.showGridGuides);
+        }
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar configurações:', error);
+    }
   }
 
   // Atualizar cor de fundo do slide
@@ -1781,7 +1819,7 @@ export class SlideService {
           alt: photo.name,
           position,
           zIndex: slotIndex + 1,
-          fit: 'contain',
+          fit: 'cover',
           border: { ...DEFAULT_BORDER },
           shadow: { ...DEFAULT_SHADOW },
           opacity: 100,

@@ -500,9 +500,9 @@ export class SlideCanvas {
   }
 
   getImageStyle(element: ImageElement): { [key: string]: string } {
-    // Usar cover para preencher o container, mantendo a imagem visível
+    // Usar o fit definido no elemento (padrão: cover para preencher sem distorcer)
     const styles: { [key: string]: string } = {
-      'object-fit': 'cover',
+      'object-fit': element.fit || 'cover',
       'width': '100%',
       'height': '100%'
     };

@@ -61,14 +61,6 @@ export class Sidebar {
       imageData: 'assets/cristal.jpeg'
     },
     {
-      id: 'natal',
-      name: 'Natal',
-      preview: 'assets/natal.jpeg',
-      description: 'Tema natalino',
-      isCustomImage: true,
-      imageData: 'assets/natal.jpeg'
-    },
-    {
       id: 'planetaterra',
       name: 'Planeta Terra',
       preview: 'assets/planetaterra.jpeg',
@@ -77,12 +69,28 @@ export class Sidebar {
       imageData: 'assets/planetaterra.jpeg'
     },
     {
-      id: 'tinta',
-      name: 'Tinta',
-      preview: 'assets/tinta.jpeg',
-      description: 'Arte com tintas',
+      id: 'infantil_escolar',
+      name: 'Escolar',
+      preview: 'assets/infantil_escolar.png',
+      description: 'Tema escolar infantil',
       isCustomImage: true,
-      imageData: 'assets/tinta.jpeg'
+      imageData: 'assets/infantil_escolar.png'
+    },
+    {
+      id: 'infantil_quadronegro',
+      name: 'Quadro Negro',
+      preview: 'assets/infantil_quadronegro.png',
+      description: 'Estilo lousa escolar',
+      isCustomImage: true,
+      imageData: 'assets/infantil_quadronegro.png'
+    },
+    {
+      id: 'infantil_sol',
+      name: 'Sol',
+      preview: 'assets/infantil_sol.png',
+      description: 'Tema solar infantil',
+      isCustomImage: true,
+      imageData: 'assets/infantil_sol.png'
     }
   ];
 
