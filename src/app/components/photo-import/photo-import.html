@@ -96,6 +96,19 @@
               </div>
             }
 
+            <!-- Error Message -->
+            @if (googlePhotos.error()) {
+              <div class="google-error">
+                <span class="error-icon">⚠️</span>
+                <p>{{ googlePhotos.error() }}</p>
+                @if (googlePhotos.error()?.includes('API')) {
+                  <a href="https://console.cloud.google.com/apis/library/photoslibrary.googleapis.com" target="_blank" class="error-link">
+                    Abrir Google Cloud Console
+                  </a>
+                }
+              </div>
+            }
+
             <!-- Albums -->
             @if (googleView === 'albums' && !googlePhotos.isLoading()) {
               <div class="google-albums-grid">

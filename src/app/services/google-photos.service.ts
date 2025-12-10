@@ -36,6 +36,7 @@ export class GooglePhotosService {
   
   isAuthenticated = signal(false);
   isLoading = signal(false);
+  error = signal<string | null>(null);
   userInfo = signal<{ name: string; email: string; picture: string } | null>(null);
   
   albums = signal<GoogleAlbum[]>([]);
@@ -194,6 +195,7 @@ export class GooglePhotosService {
     }
     
     this.isLoading.set(true);
+    this.error.set(null);
     console.log('Google Photos: Buscando todas as fotos...');
     
     try {
@@ -223,12 +225,32 @@ export class GooglePhotosService {
         
         console.log('Google Photos: Total de fotos encontradas:', photos.length);
         this.photos.set(photos);
+        
+        if (photos.length === 0) {
+          this.error.set('Nenhuma foto encontrada na sua biblioteca.');
+        }
       } else {
-        const errorText = await response.text();
-        console.error('Google Photos: Erro na resposta:', response.status, errorText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Google Photos: Erro na resposta:', response.status, errorData);
+        
+        if (response.status === 403) {
+          if (errorData.error?.message?.includes('insufficient authentication scopes')) {
+            this.error.set('Permissões insuficientes. Faça logout e login novamente.');
+          } else if (errorData.error?.message?.includes('disabled') || errorData.error?.message?.includes('not been used')) {
+            this.error.set('A Photos Library API não está habilitada. Ative-a no Google Cloud Console.');
+          } else {
+            this.error.set('Acesso negado. Verifique as permissões no Google Cloud Console.');
+          }
+        } else if (response.status === 401) {
+          this.error.set('Sessão expirada. Faça login novamente.');
+          this.logout();
+        } else {
+          this.error.set(`Erro ao carregar fotos (${response.status})`);
+        }
       }
     } catch (error) {
       console.error('Google Photos: Erro ao buscar fotos:', error);
+      this.error.set('Erro de conexão. Verifique sua internet.');
     } finally {
       this.isLoading.set(false);
     }
