@@ -101,8 +101,20 @@ export class PhotoImportComponent {
 
   private countImageSlotsInLayout(layoutId: string): number {
     const layout = this.layouts.find(l => l.id === layoutId);
-    if (!layout) return 0;
-    return layout.elements.filter(e => e.type === 'image').length;
+    if (!layout) return 3; // Default: 3 slots
+    
+    // Se tem gridGuides, conta quantos são para imagens (não texto)
+    if (layout.gridGuides && layout.gridGuides.length > 0) {
+      // Assume que guides sem "texto" no label são para imagens
+      return layout.gridGuides.filter(g => !g.label?.toLowerCase().includes('texto')).length || 3;
+    }
+    
+    // Fallback para layouts antigos com elements
+    if (layout.elements && layout.elements.length > 0) {
+      return layout.elements.filter(e => e.type === 'image').length;
+    }
+    
+    return 3; // Default
   }
 
   onSelectFiles(): void {
