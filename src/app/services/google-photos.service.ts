@@ -25,9 +25,10 @@ export interface GoogleAlbum {
 })
 export class GooglePhotosService {
   private readonly CLIENT_ID = '1093612348738-43kgglh5k9v19nmv04uhf9nufjrljugo.apps.googleusercontent.com';
-  // Usando Google Drive API (mais acessível que Photos Library API)
+  // Usando Google Drive API (leitura de fotos + leitura/escrita de arquivos do app)
   private readonly SCOPES = [
     'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email'
   ].join(' ');
@@ -82,6 +83,42 @@ export class GooglePhotosService {
   private clearStorage(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+  }
+
+  // Método auxiliar para fazer requisições autenticadas com tratamento de 401
+  private async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+    if (!this.accessToken) {
+      throw new Error('Não autenticado');
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    });
+
+    // Se receber 401, o token expirou - fazer logout
+    if (response.status === 401) {
+      console.warn('Token expirado, fazendo logout automático');
+      this.handleTokenExpired();
+      throw new Error('Token expirado');
+    }
+
+    return response;
+  }
+
+  // Tratar token expirado sem revogar (token já é inválido)
+  private handleTokenExpired(): void {
+    this.accessToken = null;
+    this.isAuthenticated.set(false);
+    this.userInfo.set(null);
+    this.albums.set([]);
+    this.photos.set([]);
+    this.driveFolderId = null;
+    this.clearStorage();
+    this.error.set('Sessão expirada. Por favor, faça login novamente.');
   }
 
   private loadGoogleApi(): void {
@@ -387,5 +424,177 @@ export class GooglePhotosService {
     }
     
     return results;
+  }
+
+  // ===== Google Drive - Salvar/Carregar Projetos =====
+  
+  private readonly DRIVE_FOLDER_NAME = 'PortfolioMaker Projects';
+  private driveFolderId: string | null = null;
+
+  // Obter ou criar pasta do app no Google Drive
+  private async getOrCreateAppFolder(): Promise<string | null> {
+    if (!this.accessToken) return null;
+    if (this.driveFolderId) return this.driveFolderId;
+
+    try {
+      // Buscar pasta existente
+      const searchResponse = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files?q=name='${this.DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`
+      );
+
+      if (searchResponse.ok) {
+        const data = await searchResponse.json();
+        if (data.files && data.files.length > 0) {
+          this.driveFolderId = data.files[0].id;
+          return this.driveFolderId;
+        }
+      }
+
+      // Criar nova pasta
+      const createResponse = await this.authenticatedFetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: this.DRIVE_FOLDER_NAME,
+          mimeType: 'application/vnd.google-apps.folder'
+        })
+      });
+
+      if (createResponse.ok) {
+        const folder = await createResponse.json();
+        this.driveFolderId = folder.id;
+        return this.driveFolderId;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Erro ao acessar pasta do Drive:', error);
+      return null;
+    }
+  }
+
+  // Salvar projeto no Google Drive
+  async saveProjectToDrive(
+    projectData: any, 
+    fileName: string,
+    existingFileId?: string
+  ): Promise<{ success: boolean; fileId?: string; error?: string }> {
+    if (!this.accessToken) {
+      return { success: false, error: 'Não autenticado' };
+    }
+
+    try {
+      const folderId = await this.getOrCreateAppFolder();
+      if (!folderId && !existingFileId) {
+        return { success: false, error: 'Não foi possível acessar a pasta no Drive' };
+      }
+
+      const metadata: any = {
+        name: `${fileName}.pmk`,
+        mimeType: 'application/json'
+      };
+
+      if (!existingFileId) {
+        metadata.parents = [folderId];
+      }
+
+      const fileContent = JSON.stringify(projectData);
+      const blob = new Blob([fileContent], { type: 'application/json' });
+
+      // Criar form multipart
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      const url = existingFileId 
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+      const response = await this.authenticatedFetch(url, {
+        method: existingFileId ? 'PATCH' : 'POST',
+        body: form
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return { success: true, fileId: result.id };
+      } else {
+        const error = await response.text();
+        return { success: false, error: `Erro ao salvar: ${error}` };
+      }
+    } catch (error: any) {
+      console.error('Erro ao salvar no Drive:', error);
+      if (error.message === 'Token expirado') {
+        return { success: false, error: 'Sessão expirada. Por favor, faça login novamente.' };
+      }
+      return { success: false, error: 'Erro de conexão com o Drive' };
+    }
+  }
+
+  // Listar projetos salvos no Drive
+  async listDriveProjects(): Promise<{ id: string; name: string; modifiedTime: string }[]> {
+    if (!this.accessToken) return [];
+
+    try {
+      const folderId = await this.getOrCreateAppFolder();
+      if (!folderId) return [];
+
+      const response = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return (data.files || []).map((f: any) => ({
+          id: f.id,
+          name: f.name.replace('.pmk', ''),
+          modifiedTime: f.modifiedTime
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Erro ao listar projetos do Drive:', error);
+      return [];
+    }
+  }
+
+  // Carregar projeto do Drive
+  async loadProjectFromDrive(fileId: string): Promise<any | null> {
+    if (!this.accessToken) return null;
+
+    try {
+      const response = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+      );
+
+      if (response.ok) {
+        return await response.json();
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Erro ao carregar projeto do Drive:', error);
+      return null;
+    }
+  }
+
+  // Deletar projeto do Drive
+  async deleteProjectFromDrive(fileId: string): Promise<boolean> {
+    if (!this.accessToken) return false;
+
+    try {
+      const response = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}`,
+        { method: 'DELETE' }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Erro ao deletar projeto do Drive:', error);
+      return false;
+    }
   }
 }

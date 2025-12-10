@@ -1,11 +1,44 @@
 <div class="toolbar">
   <div class="toolbar-left">
+    <button class="logo-btn" (click)="onOpenProjects()" title="Meus Projetos">
+      <span class="material-icons-round">folder_open</span>
+    </button>
     <span class="logo">Portfólio Maker</span>
+    
+    <!-- Indicador do Projeto Atual -->
+    <div class="project-indicator">
+      <span class="project-name">
+        {{ projectState.currentProjectName() || 'Novo Projeto' }}
+      </span>
+      @if (projectState.hasUnsavedChanges()) {
+        <span class="save-status unsaved" title="Alterações não salvas - Clique para salvar" (click)="onSaveProject()">
+          <span class="material-icons-round">circle</span>
+        </span>
+      } @else {
+        <span class="save-status saved" title="Projeto salvo">
+          <span class="material-icons-round">check_circle</span>
+        </span>
+      }
+    </div>
   </div>
+
+  <!-- Botão Menu Mobile -->
+  <button class="mobile-menu-btn" (click)="toggleMobileMenu()">
+    <span class="hamburger-icon" [class.open]="isMobileMenuOpen">
+      <span></span>
+      <span></span>
+      <span></span>
+    </span>
+  </button>
   
-  <div class="toolbar-center">
-    <button class="btn btn-primary" (click)="onAddImages()">
-      Adicionar Fotos
+  <!-- Menu Desktop -->
+  <div class="toolbar-center desktop-only">
+    <button class="btn btn-secondary" (click)="onImportBatch()">
+      <span class="material-icons-round">auto_awesome</span> Importar Inteligente
+    </button>
+    
+    <button class="btn" (click)="onAddImages()">
+      <span class="material-icons-round">add_photo_alternate</span> Adicionar Fotos
     </button>
     <input 
       #fileInput
@@ -17,23 +50,13 @@
       title="Selecionar fotos"
     >
 
-    <button class="btn btn-secondary" (click)="onImportBatch()">
-      Importar Inteligente
-    </button>
-    
     <button class="btn" (click)="onAddText()">
-      Adicionar Texto
+      <span class="material-icons-round">text_fields</span> Adicionar Texto
     </button>
     
     <button class="btn" (click)="onNewSlide()">
-      Novo Slide
+      <span class="material-icons-round">add_to_photos</span> Novo Slide
     </button>
-    
-    <div class="separator"></div>
-    
-    <button class="btn" (click)="onZoomOut()">-</button>
-    <span class="zoom-level">{{ slideService.zoom() }}%</span>
-    <button class="btn" (click)="onZoomIn()">+</button>
     
     <div class="separator"></div>
     
@@ -42,36 +65,22 @@
       (click)="onAlignToGrid()"
       title="Alinhar todos os elementos na grade"
     >
-      Alinhar à Grade
+      <span class="material-icons-round">grid_on</span> Alinhar à Grade
     </button>
 
-    <div class="separator"></div>
-
     <button 
-      class="btn btn-danger" 
-      (click)="onDeleteElement()"
-      [disabled]="!slideService.selectedElementId()"
-      title="Excluir elemento selecionado"
+      class="btn"
+      [class.btn-active]="slideService.showGridGuides()"
+      (click)="onToggleGridGuides()"
+      title="Mostrar/ocultar linhas de grade do layout"
     >
-      Excluir Elemento
+      <span class="material-icons-round">{{ slideService.showGridGuides() ? 'grid_view' : 'grid_off' }}</span> Grade
     </button>
   </div>
   
-  <div class="toolbar-right">
-    @if (googlePhotos.isAuthenticated()) {
-      <div class="google-user-info">
-        @if (googlePhotos.userInfo(); as user) {
-          <img [src]="user.picture" [alt]="user.name" [title]="user.name" class="user-avatar-small">
-          <span class="user-name-small">{{ user.name }}</span>
-        }
-        <button class="btn btn-logout-small" (click)="onGoogleLogout()" title="Sair do Google">
-          Sair
-        </button>
-      </div>
-      <div class="separator"></div>
-    }
+  <div class="toolbar-right desktop-only">
     <button class="btn btn-presentation" (click)="onStartPresentation()" title="Iniciar apresentação (F5)">
-      ▶ Apresentar
+      <span class="material-icons-round">play_arrow</span> Apresentar
     </button>
     <button 
       class="btn btn-success" 
@@ -79,7 +88,73 @@
       [disabled]="isExporting"
       title="Exportar como PDF"
     >
-      {{ isExporting ? '⏳ Exportando...' : '📄 Exportar PDF' }}
+      @if (isExporting) {
+        <span class="material-icons-round spin">sync</span> Exportando...
+      } @else {
+        <span class="material-icons-round">picture_as_pdf</span> Exportar PDF
+      }
     </button>
   </div>
+</div>
+
+<!-- Menu Mobile Dropdown -->
+<div class="mobile-menu" [class.open]="isMobileMenuOpen">
+  <div class="mobile-menu-overlay" (click)="closeMobileMenu()"></div>
+  <div class="mobile-menu-content">
+    <div class="mobile-menu-section">
+      <span class="mobile-menu-title">Projeto</span>
+      <button class="mobile-menu-item" (click)="onOpenProjects(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">folder_open</span> Meus Projetos
+      </button>
+      <button class="mobile-menu-item save" (click)="onSaveProject(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">save</span> Salvar Projeto
+      </button>
+    </div>
+    
+    <div class="mobile-menu-section">
+      <span class="mobile-menu-title">Adicionar</span>
+      <button class="mobile-menu-item" (click)="onImportBatch(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">auto_awesome</span> Importar Inteligente
+      </button>
+      <button class="mobile-menu-item" (click)="onAddImages(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">add_photo_alternate</span> Adicionar Fotos
+      </button>
+      <button class="mobile-menu-item" (click)="onAddText(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">text_fields</span> Adicionar Texto
+      </button>
+      <button class="mobile-menu-item" (click)="onNewSlide(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">add_to_photos</span> Novo Slide
+      </button>
+    </div>
+
+    <div class="mobile-menu-section">
+      <span class="mobile-menu-title">Visualização</span>
+      <button class="mobile-menu-item" (click)="onAlignToGrid(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">grid_on</span> Alinhar à Grade
+      </button>
+      <button 
+        class="mobile-menu-item" 
+        [class.active]="slideService.showGridGuides()"
+        (click)="onToggleGridGuides()"
+      >
+        <span class="material-icons-round menu-icon">{{ slideService.showGridGuides() ? 'grid_view' : 'grid_off' }}</span> 
+        {{ slideService.showGridGuides() ? 'Ocultar Grade' : 'Mostrar Grade' }}
+      </button>
+    </div>
+
+    <div class="mobile-menu-section">
+      <span class="mobile-menu-title">Exportar</span>
+      <button class="mobile-menu-item presentation" (click)="onStartPresentation(); closeMobileMenu()">
+        <span class="material-icons-round menu-icon">play_arrow</span> Apresentar
+      </button>
+      <button 
+        class="mobile-menu-item success" 
+        (click)="onExportPdf(); closeMobileMenu()"
+        [disabled]="isExporting"
+      >
+        <span class="material-icons-round menu-icon">picture_as_pdf</span> {{ isExporting ? 'Exportando...' : 'Exportar PDF' }}
+      </button>
+    </div>
+
+    </div>
 </div>

@@ -159,6 +159,18 @@ export class Sidebar {
     { name: 'Satisfy', value: "'Satisfy', cursive" }
   ];
 
+  // Proporções de imagem padrão
+  aspectRatios = [
+    { name: '1:1', value: 1, icon: '□' },
+    { name: '4:5', value: 4/5, icon: '▯' },
+    { name: '2:3', value: 2/3, icon: '▯' },
+    { name: '3:4', value: 3/4, icon: '▯' },
+    { name: '3:2', value: 3/2, icon: '▭' },
+    { name: '4:3', value: 4/3, icon: '▭' },
+    { name: '16:9', value: 16/9, icon: '▬' },
+    { name: '9:16', value: 9/16, icon: '▮' },
+  ];
+
   // Paleta de cores escolares/educacionais
   schoolColorPalette = [
     // Cores primárias vibrantes (crianças)
@@ -415,6 +427,65 @@ export class Sidebar {
     }
   }
 
+  // Proporção do canvas (960x540 = 16:9)
+  private canvasAspectRatio = 960 / 540; // 1.7778
+
+  onAspectRatioChange(ratio: number): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      // O canvas tem proporção 16:9 (960x540)
+      // Quando usamos porcentagens, precisamos compensar a diferença
+      // Para que a imagem apareça com a proporção correta visualmente
+      
+      const currentHeight = element.position.height;
+      const currentWidth = element.position.width;
+      
+      // Calcula a nova largura levando em conta a proporção do canvas
+      // newWidth% / currentHeight% * canvasAspectRatio = ratio desejado
+      // newWidth% = currentHeight% * ratio / canvasAspectRatio
+      let newWidth = currentHeight * ratio / this.canvasAspectRatio;
+      let newHeight = currentHeight;
+      
+      // Se a nova largura for muito grande, ajusta baseado na largura
+      if (newWidth > 85) {
+        newWidth = 70;
+        // newHeight% = newWidth% * canvasAspectRatio / ratio
+        newHeight = newWidth * this.canvasAspectRatio / ratio;
+      }
+      
+      // Se a nova altura for muito grande, ajusta também
+      if (newHeight > 85) {
+        newHeight = 70;
+        newWidth = newHeight * ratio / this.canvasAspectRatio;
+      }
+      
+      this.slideService.updateElement(element.id, {
+        position: {
+          ...element.position,
+          width: newWidth,
+          height: newHeight
+        }
+      });
+    }
+  }
+
+  getCurrentAspectRatio(): string | null {
+    const element = this.selectedElement;
+    if (!element || !this.isImageElement(element)) return null;
+    
+    const { width, height } = element.position;
+    // Calcula a proporção visual real (compensando a proporção do canvas)
+    const visualRatio = (width / height) * this.canvasAspectRatio;
+    
+    // Encontra a proporção mais próxima
+    for (const ar of this.aspectRatios) {
+      if (Math.abs(visualRatio - ar.value) < 0.1) {
+        return ar.name;
+      }
+    }
+    return null;
+  }
+
   getLayoutIcon(layout: LayoutTemplate): string {
     const icons: { [key: string]: string } = {
       'layout-3-images-1-text': '▣▣▣',
@@ -425,5 +496,155 @@ export class Sidebar {
       'layout-custom': '◇'
     };
     return icons[layout.id] || '▢';
+  }
+
+  // Métodos para controle de borda arredondada de imagens
+  getBorderRadius(): number {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      return element.border?.radius ?? 0;
+    }
+    return 0;
+  }
+
+  isCircular(): boolean {
+    return this.getBorderRadius() >= 200;
+  }
+
+  onBorderRadiusPreset(value: number): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      this.slideService.updateElementBorder(element.id, { radius: value });
+    }
+  }
+
+  onBorderRadiusSlider(event: Event): void {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      this.slideService.updateElementBorder(element.id, { radius: value });
+    }
+  }
+
+  // Métodos para controle de sombra de imagens
+  isShadowEnabled(): boolean {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      return element.shadow?.enabled ?? false;
+    }
+    return false;
+  }
+
+  getShadowBlur(): number {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      return element.shadow?.blur ?? 15;
+    }
+    return 15;
+  }
+
+  getShadowColor(): string {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      return element.shadow?.color ?? 'rgba(0,0,0,0.3)';
+    }
+    return 'rgba(0,0,0,0.3)';
+  }
+
+  getShadowDirection(): string {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      const x = element.shadow?.x ?? 4;
+      const y = element.shadow?.y ?? 4;
+      
+      if (x === 0 && y === 0) return 'center';
+      if (x < 0 && y < 0) return 'top-left';
+      if (x === 0 && y < 0) return 'top';
+      if (x > 0 && y < 0) return 'top-right';
+      if (x < 0 && y === 0) return 'left';
+      if (x > 0 && y === 0) return 'right';
+      if (x < 0 && y > 0) return 'bottom-left';
+      if (x === 0 && y > 0) return 'bottom';
+      if (x > 0 && y > 0) return 'bottom-right';
+    }
+    return 'bottom-right';
+  }
+
+  setShadowPreset(preset: 'none' | 'soft' | 'medium' | 'strong'): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      switch (preset) {
+        case 'none':
+          this.slideService.updateElementShadow(element.id, { enabled: false });
+          break;
+        case 'soft':
+          this.slideService.updateElementShadow(element.id, { 
+            enabled: true, x: 2, y: 2, blur: 8, color: 'rgba(0,0,0,0.2)' 
+          });
+          break;
+        case 'medium':
+          this.slideService.updateElementShadow(element.id, { 
+            enabled: true, x: 4, y: 4, blur: 15, color: 'rgba(0,0,0,0.3)' 
+          });
+          break;
+        case 'strong':
+          this.slideService.updateElementShadow(element.id, { 
+            enabled: true, x: 6, y: 6, blur: 30, color: 'rgba(0,0,0,0.4)' 
+          });
+          break;
+      }
+    }
+  }
+
+  onShadowBlurChange(event: Event): void {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      this.slideService.updateElementShadow(element.id, { blur: value });
+    }
+  }
+
+  setShadowDirection(direction: string): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      const offset = 4;
+      let x = 0, y = 0;
+      
+      switch (direction) {
+        case 'top-left': x = -offset; y = -offset; break;
+        case 'top': x = 0; y = -offset; break;
+        case 'top-right': x = offset; y = -offset; break;
+        case 'left': x = -offset; y = 0; break;
+        case 'center': x = 0; y = 0; break;
+        case 'right': x = offset; y = 0; break;
+        case 'bottom-left': x = -offset; y = offset; break;
+        case 'bottom': x = 0; y = offset; break;
+        case 'bottom-right': x = offset; y = offset; break;
+      }
+      
+      this.slideService.updateElementShadow(element.id, { x, y });
+    }
+  }
+
+  setShadowColor(color: string): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      this.slideService.updateElementShadow(element.id, { color });
+    }
+  }
+
+  toggleImageShadow(): void {
+    const element = this.selectedElement;
+    if (element && this.isImageElement(element)) {
+      const currentShadow = element.shadow?.enabled ?? false;
+      this.slideService.updateElementShadow(element.id, { enabled: !currentShadow });
+    }
+  }
+
+  onDeleteElement(): void {
+    const element = this.selectedElement;
+    if (element) {
+      this.slideService.deleteElement(element.id);
+    }
   }
 }

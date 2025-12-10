@@ -41,3 +41,24 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Material Icons - Estilos globais */
+.material-icons,
+.material-icons-outlined,
+.material-icons-round {
+  font-size: inherit;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.icon-sm {
+  font-size: 18px !important;
+}
+
+.icon-md {
+  font-size: 24px !important;
+}
+
+.icon-lg {
+  font-size: 32px !important;
+}

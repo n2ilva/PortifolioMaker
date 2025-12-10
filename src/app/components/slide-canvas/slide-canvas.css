@@ -1,3 +1,12 @@
+/* Container principal - usa todo o espaço disponível */
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #1a1a1a;
+}
+
 .canvas-container {
   flex: 1;
   display: flex;
@@ -6,49 +15,203 @@
   padding: 24px;
   background: #1a1a1a;
   overflow: auto;
+  min-height: 0; /* Importante para flex shrink funcionar */
 }
 
 .canvas-wrapper {
   transform-origin: center center;
   transition: transform 0.2s ease;
-  max-width: 100%;
-  max-height: 100%;
+  overflow: visible;
+  /* Dimensões fixas para manter proporção 16:9 */
+  width: 960px;
+  height: 540px;
+  flex-shrink: 0;
 }
 
 .canvas {
   width: 960px;
-  height: 540px; /* 16:9 */
-  max-width: 100%;
+  height: 540px; /* 16:9 - proporção fixa */
   background: white;
   position: relative;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate; /* Cria novo stacking context para permitir z-index negativo */
+}
+
+/* Controles de Zoom - Fixo na parte inferior */
+.zoom-controls-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #252525;
+  padding: 10px 16px;
+  border-top: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.zoom-btn:active {
+  transform: scale(0.95);
+}
+
+.zoom-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 50px;
+  text-align: center;
 }
 
 /* Guias de Grade do Layout */
 .layout-grid-guide {
   position: absolute;
-  border: 1px dashed rgba(100, 149, 237, 0.5);
-  background: rgba(100, 149, 237, 0.05);
+  border: 2px dashed rgba(100, 149, 237, 0.6);
+  background: rgba(100, 149, 237, 0.03);
   pointer-events: none;
-  z-index: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: opacity 0.2s;
 }
 
+/* Linhas de grade internas (regra dos terços) */
+.layout-grid-guide::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    /* Linhas verticais dos terços */
+    linear-gradient(to right, 
+      transparent 0%, 
+      transparent calc(33.33% - 0.5px), 
+      rgba(100, 149, 237, 0.25) calc(33.33% - 0.5px), 
+      rgba(100, 149, 237, 0.25) calc(33.33% + 0.5px), 
+      transparent calc(33.33% + 0.5px),
+      transparent calc(66.66% - 0.5px),
+      rgba(100, 149, 237, 0.25) calc(66.66% - 0.5px),
+      rgba(100, 149, 237, 0.25) calc(66.66% + 0.5px),
+      transparent calc(66.66% + 0.5px),
+      transparent 100%
+    ),
+    /* Linhas horizontais dos terços */
+    linear-gradient(to bottom, 
+      transparent 0%, 
+      transparent calc(33.33% - 0.5px), 
+      rgba(100, 149, 237, 0.25) calc(33.33% - 0.5px), 
+      rgba(100, 149, 237, 0.25) calc(33.33% + 0.5px), 
+      transparent calc(33.33% + 0.5px),
+      transparent calc(66.66% - 0.5px),
+      rgba(100, 149, 237, 0.25) calc(66.66% - 0.5px),
+      rgba(100, 149, 237, 0.25) calc(66.66% + 0.5px),
+      transparent calc(66.66% + 0.5px),
+      transparent 100%
+    );
+  pointer-events: none;
+}
+
+/* Linha central mais visível */
+.layout-grid-guide::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    /* Linha vertical central */
+    linear-gradient(to right, 
+      transparent 0%, 
+      transparent calc(50% - 0.5px), 
+      rgba(100, 149, 237, 0.4) calc(50% - 0.5px), 
+      rgba(100, 149, 237, 0.4) calc(50% + 0.5px), 
+      transparent calc(50% + 0.5px),
+      transparent 100%
+    ),
+    /* Linha horizontal central */
+    linear-gradient(to bottom, 
+      transparent 0%, 
+      transparent calc(50% - 0.5px), 
+      rgba(100, 149, 237, 0.4) calc(50% - 0.5px), 
+      rgba(100, 149, 237, 0.4) calc(50% + 0.5px), 
+      transparent calc(50% + 0.5px),
+      transparent 100%
+    );
+  pointer-events: none;
+}
+
+/* Marcadores de canto */
+.grid-corner-marker {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: rgba(100, 149, 237, 0.7);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.grid-corner-marker.top-left {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.grid-corner-marker.top-right {
+  top: -1px;
+  right: -1px;
+  border-width: 2px 2px 0 0;
+}
+
+.grid-corner-marker.bottom-left {
+  bottom: -1px;
+  left: -1px;
+  border-width: 0 0 2px 2px;
+}
+
+.grid-corner-marker.bottom-right {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
 .grid-guide-label {
   font-size: 11px;
-  color: rgba(100, 149, 237, 0.6);
+  color: rgba(100, 149, 237, 0.7);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 8px;
+  border-radius: 4px;
+  z-index: 1;
 }
 
 /* Linhas Guia de Alinhamento */
@@ -91,14 +254,22 @@
   user-select: none;
   border: 2px solid transparent;
   transition: border-color 0.2s, box-shadow 0.3s, border-radius 0.3s;
+  overflow: visible;
+}
+
+/* Elemento de fundo - sem interação */
+.element.background-element {
+  cursor: default;
+  pointer-events: none;
+  border: none !important;
   overflow: hidden;
 }
 
-.element:hover {
+.element:hover:not(.background-element) {
   border-color: rgba(0, 213, 255, 0.5);
 }
 
-.element.hovered {
+.element.hovered:not(.background-element) {
   border-color: rgba(0, 213, 255, 0.7);
 }
 
@@ -106,16 +277,78 @@
   border-color: #00d5ff;
 }
 
+/* Badge de Proporção Padrão */
+.aspect-ratio-badge {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(50, 50, 50, 0.95));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 213, 255, 0.3);
+  z-index: 100;
+  animation: badge-pop-in 0.3s ease;
+  white-space: nowrap;
+}
+
+@keyframes badge-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.aspect-ratio-icon {
+  font-size: 14px;
+}
+
+.aspect-ratio-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #00d5ff;
+}
+
+.aspect-ratio-desc {
+  font-size: 10px;
+  color: #aaa;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Badge especial para 1:1 (Quadrado) */
+.aspect-ratio-badge.square {
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+.aspect-ratio-badge.square .aspect-ratio-name {
+  color: #00ff88;
+}
+
 .image-element {
   width: 100%;
   height: 100%;
   overflow: hidden;
   border-radius: inherit;
+  display: block;
+  position: relative;
 }
 
 .image-element img {
   width: 100%;
   height: 100%;
+  display: block;
+  object-fit: cover;
   pointer-events: none;
   border-radius: inherit;
 }
@@ -182,16 +415,16 @@
 /* Menu Flutuante no Hover */
 .hover-menu {
   position: absolute;
-  top: -60px;
+  top: 30%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 200;
   animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(5px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .hover-menu-content {
@@ -249,6 +482,33 @@
   color: #00313a;
 }
 
+/* Botão circular com efeito especial */
+.preset-btn.circular-btn.active {
+  background: linear-gradient(135deg, #00d5ff, #00ff88);
+  animation: none;
+}
+
+.preset-btn.circular-btn.pulse {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px #00d5ff, 0 0 10px rgba(0, 213, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px #00ff88, 0 0 25px rgba(0, 255, 136, 0.7);
+  }
+}
+
+/* Container do slider */
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
 .radius-slider {
   width: 80px;
   height: 4px;
@@ -258,6 +518,12 @@
   border-radius: 2px;
   outline: none;
   cursor: pointer;
+  transition: background 0.3s;
+}
+
+/* Slider quando atinge circular */
+.radius-slider.circular-reached {
+  background: linear-gradient(90deg, #00d5ff, #00ff88);
 }
 
 .radius-slider::-webkit-slider-thumb {
@@ -268,11 +534,57 @@
   border-radius: 50%;
   background: #00d5ff;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.radius-slider.circular-reached::-webkit-slider-thumb {
+  background: #00ff88;
+  transform: scale(1.3);
 }
 
 .radius-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
+}
+
+/* Indicador de circular atingido */
+.circular-indicator {
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #00ff88, #00d5ff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #00313a;
+  font-weight: bold;
+  animation: pop-in 0.3s ease;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Badge "Circular" no label */
+.circular-badge {
+  font-size: 9px;
+  background: linear-gradient(135deg, #00ff88, #00d5ff);
+  color: #00313a;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+  font-weight: bold;
+  animation: pop-in 0.3s ease;
 }
 
 .shadow-toggle {

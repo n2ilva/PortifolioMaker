@@ -1,21 +1,21 @@
 <div class="photo-import-overlay" *ngIf="isVisible" (click)="closeModal()">
   <div class="photo-import-modal" [class.expanded]="showGooglePhotos" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h2>📁 Importar Inteligente</h2>
-      <button class="close-btn" (click)="closeModal()">✕</button>
+      <h2><span class="material-icons">auto_awesome</span> Importar Inteligente</h2>
+      <button class="close-btn" (click)="closeModal()"><span class="material-icons">close</span></button>
     </div>
 
     <div class="modal-body">
       <!-- Instruções -->
       <div class="instructions">
-        <h4>📋 Como usar:</h4>
+        <h4><span class="material-icons">checklist</span> Como usar:</h4>
         <ol>
           <li>Selecione suas fotos do computador ou do Google Fotos</li>
           <li>Configure em qual slide cada foto deve entrar</li>
           <li>Slides que não existem serão criados automaticamente</li>
         </ol>
         <div class="info-box">
-          <span class="info-icon">ℹ️</span>
+          <span class="info-icon material-icons">info</span>
           <span>Você tem <strong>{{ getSlidesCount() }}</strong> slide(s) existente(s).</span>
         </div>
       </div>
@@ -31,7 +31,7 @@
           (drop)="onDrop($event)"
         >
           <div class="drop-content">
-            <span class="drop-icon">📷</span>
+            <span class="drop-icon material-icons">add_photo_alternate</span>
             <p>Arraste suas fotos aqui</p>
             <span class="drop-or">ou</span>
             <button class="select-btn" (click)="onSelectFiles()">Selecionar Arquivos</button>
@@ -81,10 +81,10 @@
                 <button class="btn-back" (click)="onBackToAlbums()">← Álbuns</button>
               }
               @if (googleView === 'albums') {
-                <button class="btn-all-photos" (click)="onShowAllGooglePhotos()">📷 Todas as Fotos</button>
+                <button class="btn-all-photos" (click)="onShowAllGooglePhotos()"><span class="material-icons">photo_library</span> Todas as Fotos</button>
               }
               @if (selectedAlbum) {
-                <span class="current-album">📁 {{ selectedAlbum.title }}</span>
+                <span class="current-album"><span class="material-icons">folder</span> {{ selectedAlbum.title }}</span>
               }
             </div>
 
@@ -99,7 +99,7 @@
             <!-- Error Message -->
             @if (googlePhotos.error()) {
               <div class="google-error">
-                <span class="error-icon">⚠️</span>
+                <span class="error-icon material-icons">warning</span>
                 <p>{{ googlePhotos.error() }}</p>
                 @if (googlePhotos.error()?.includes('API')) {
                   <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener" class="error-link">
@@ -117,7 +117,7 @@
                     @if (album.coverPhotoBaseUrl) {
                       <img [src]="album.coverPhotoBaseUrl + '=w150-h150-c'" [alt]="album.title" [title]="album.title">
                     } @else {
-                      <div class="no-cover">📁</div>
+                      <div class="no-cover"><span class="material-icons">folder</span></div>
                     }
                     <span class="album-title">{{ album.title }}</span>
                   </div>
@@ -126,7 +126,7 @@
                   <div class="no-albums-message">
                     <p class="no-albums">Nenhum álbum encontrado</p>
                     <p class="no-albums-hint">A API do Google Photos só mostra álbuns criados manualmente.</p>
-                    <p class="no-albums-hint">Use o botão <strong>"📷 Todas as Fotos"</strong> acima para ver suas fotos.</p>
+                    <p class="no-albums-hint">Use o botão <strong>"Todas as Fotos"</strong> acima para ver suas fotos.</p>
                   </div>
                 }
               </div>
@@ -149,7 +149,7 @@
                   >
                     <img [src]="photo.baseUrl + '=w120-h120-c'" [alt]="photo.filename">
                     @if (photo.selected) {
-                      <div class="photo-check">✓</div>
+                      <div class="photo-check"><span class="material-icons">check</span></div>
                     }
                   </div>
                 }
@@ -178,14 +178,14 @@
       <!-- Mensagens -->
       @if (errorMessage) {
         <div class="message error">
-          <span class="message-icon">⚠️</span>
+          <span class="message-icon material-icons">error</span>
           {{ errorMessage }}
         </div>
       }
 
       @if (successMessage) {
         <div class="message success">
-          <span class="message-icon">✅</span>
+          <span class="message-icon material-icons">check_circle</span>
           {{ successMessage }}
         </div>
       }
@@ -193,7 +193,7 @@
       <!-- Configuração por Slide -->
       @if (photos.length > 0) {
         <div class="slides-config-section">
-          <h4>📊 Distribuição das Fotos por Slide ({{ photos.length }} foto(s))</h4>
+          <h4><span class="material-icons">bar_chart</span> Distribuição das Fotos por Slide ({{ photos.length }} foto(s))</h4>
           
           @for (config of getSlidesWithPhotos(); track config.slideNumber) {
             <div class="slide-config-card" [class.new-slide]="!config.exists">
@@ -244,7 +244,7 @@
                     <div class="photo-details">
                       <div class="photo-name-row">
                         <span class="photo-filename" [title]="photo.name">{{ photo.name }}</span>
-                        <button class="remove-photo-btn" (click)="removePhoto(photo)" title="Remover foto">✕</button>
+                        <button class="remove-photo-btn" (click)="removePhoto(photo)" title="Remover foto"><span class="material-icons">close</span></button>
                       </div>
                       
                       <div class="photo-controls">

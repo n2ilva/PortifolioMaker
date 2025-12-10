@@ -4,6 +4,28 @@ import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
 import { ImageElement, TextElement, ElementBorderStyle, LayoutGridGuide } from '../../models/slide.model';
 
+// Proporções padrão do mercado fotográfico
+interface AspectRatioInfo {
+  name: string;
+  ratio: number;
+  description: string;
+  icon: string;
+}
+
+const STANDARD_ASPECT_RATIOS: AspectRatioInfo[] = [
+  { name: '1:1', ratio: 1, description: 'Quadrado', icon: 'crop_square' },
+  { name: '4:5', ratio: 0.8, description: 'Instagram Retrato', icon: 'smartphone' },
+  { name: '2:3', ratio: 0.667, description: 'Foto 10x15', icon: 'image' },
+  { name: '3:4', ratio: 0.75, description: 'Foto Clássica', icon: 'photo_camera' },
+  { name: '3:2', ratio: 1.5, description: 'DSLR / 35mm', icon: 'camera_alt' },
+  { name: '4:3', ratio: 1.333, description: 'Monitor / TV', icon: 'desktop_windows' },
+  { name: '16:9', ratio: 1.778, description: 'Widescreen / HD', icon: 'tv' },
+  { name: '21:9', ratio: 2.333, description: 'Ultrawide / Cinema', icon: 'movie' },
+  { name: '9:16', ratio: 0.5625, description: 'Stories / Reels', icon: 'phone_android' },
+  { name: '5:4', ratio: 1.25, description: 'Foto Grande Formato', icon: 'photo_library' },
+  { name: 'A4', ratio: 1.414, description: 'Papel A4', icon: 'description' },
+];
+
 @Component({
   selector: 'app-slide-canvas',
   imports: [CommonModule, FormsModule],
@@ -40,6 +62,9 @@ export class SlideCanvas {
   // Edição de texto
   editingTextId: string | null = null;
 
+  // Proporção atual detectada
+  currentAspectRatio: AspectRatioInfo | null = null;
+
   onElementClick(event: Event, element: ImageElement | TextElement): void {
     event.stopPropagation();
     this.slideService.selectElement(element.id);
@@ -49,6 +74,21 @@ export class SlideCanvas {
     this.slideService.selectElement(null);
     this.editingTextId = null;
     this.hideHoverMenu();
+  }
+
+  // Controles de zoom
+  onZoomIn(): void {
+    const currentZoom = this.slideService.zoom();
+    if (currentZoom < 200) {
+      this.slideService.setZoom(currentZoom + 10);
+    }
+  }
+
+  onZoomOut(): void {
+    const currentZoom = this.slideService.zoom();
+    if (currentZoom > 10) {
+      this.slideService.setZoom(currentZoom - 10);
+    }
   }
 
   // Double click para editar texto
@@ -102,25 +142,89 @@ export class SlideCanvas {
     // Atualizar valores do menu baseado no elemento
     this.borderRadiusValue = element.border?.radius || 0;
     this.shadowEnabled = element.shadow?.enabled || false;
+    
+    // Detectar proporção do elemento
+    this.currentAspectRatio = this.detectAspectRatio(element);
   }
 
   onElementMouseLeave(event: MouseEvent, element: ImageElement | TextElement): void {
-    // Não esconder se o mouse foi para o menu
+    // Não esconder se o mouse foi para o menu ou badge
     const relatedTarget = event.relatedTarget as HTMLElement;
-    if (relatedTarget?.closest('.hover-menu')) {
+    if (relatedTarget?.closest('.hover-menu') || relatedTarget?.closest('.aspect-ratio-badge')) {
       return;
     }
     
-    this.hideHoverMenu();
+    // Pequeno delay para permitir que o mouse chegue ao menu
+    setTimeout(() => {
+      // Verificar se o mouse está sobre o menu
+      const hoverMenu = document.querySelector('.hover-menu:hover');
+      const aspectBadge = document.querySelector('.aspect-ratio-badge:hover');
+      if (!hoverMenu && !aspectBadge) {
+        // Só esconde se o elemento ainda é o mesmo (não mudou para outro)
+        if (this.hoveredElementId === element.id) {
+          this.hideHoverMenu();
+        }
+      }
+    }, 100);
   }
 
-  onHoverMenuMouseLeave(): void {
+  onHoverMenuMouseLeave(event: MouseEvent): void {
+    // Verificar se o mouse voltou para o elemento
+    const relatedTarget = event.relatedTarget as HTMLElement;
+    if (relatedTarget?.closest('.element')) {
+      return;
+    }
     this.hideHoverMenu();
   }
 
   hideHoverMenu(): void {
     this.hoveredElementId = null;
     this.slideService.setHoveredElement(null);
+    this.currentAspectRatio = null;
+  }
+
+  // Verifica se o arredondamento está no máximo (circular)
+  isFullyRounded(): boolean {
+    return this.borderRadiusValue >= 200; // Consideramos circular a partir de 200px
+  }
+
+  // Proporção do canvas (960x540 = 16:9)
+  private canvasAspectRatio = 960 / 540; // 1.7778
+
+  // Detectar proporção padrão do elemento
+  detectAspectRatio(element: ImageElement | TextElement): AspectRatioInfo | null {
+    const width = element.position.width;
+    const height = element.position.height;
+    
+    if (width <= 0 || height <= 0) return null;
+    
+    // Calcula a proporção visual real (compensando a proporção do canvas)
+    // Como as porcentagens são relativas ao canvas 16:9, precisamos multiplicar
+    const visualRatio = (width / height) * this.canvasAspectRatio;
+    const tolerance = 0.08; // 8% de tolerância
+    
+    for (const aspectRatio of STANDARD_ASPECT_RATIOS) {
+      if (Math.abs(visualRatio - aspectRatio.ratio) <= tolerance * aspectRatio.ratio) {
+        return aspectRatio;
+      }
+    }
+    
+    return null;
+  }
+
+  // Obter informação da proporção atual para exibição
+  getAspectRatioInfo(): AspectRatioInfo | null {
+    return this.currentAspectRatio;
+  }
+
+  // Verificar se tem uma proporção padrão detectada
+  hasStandardAspectRatio(): boolean {
+    return this.currentAspectRatio !== null;
+  }
+
+  // Atualizar proporção durante redimensionamento
+  updateAspectRatioDetection(element: ImageElement | TextElement): void {
+    this.currentAspectRatio = this.detectAspectRatio(element);
   }
 
   // Atualizar borda arredondada
@@ -265,6 +369,17 @@ export class SlideCanvas {
         width: newWidth,
         height: newHeight
       });
+
+      // Atualizar detecção de proporção durante redimensionamento
+      const element = this.slideService.selectedElement();
+      if (element) {
+        // Criar objeto temporário com novas dimensões para detectar
+        const tempElement = {
+          ...element,
+          position: { ...element.position, width: newWidth, height: newHeight }
+        };
+        this.currentAspectRatio = this.detectAspectRatio(tempElement);
+      }
     }
   }
 
@@ -295,9 +410,10 @@ export class SlideCanvas {
       styles['height'] = `${element.position.height}%`;
     }
 
-    // Aplicar borda arredondada
+    // Aplicar borda arredondada no container
     if (element.border?.radius) {
       styles['border-radius'] = `${element.border.radius}px`;
+      styles['overflow'] = 'hidden';
     }
 
     // Aplicar opacidade
@@ -320,8 +436,11 @@ export class SlideCanvas {
   }
 
   getImageStyle(element: ImageElement): { [key: string]: string } {
+    // Usar cover para preencher o container, mantendo a imagem visível
     const styles: { [key: string]: string } = {
-      'object-fit': element.fit
+      'object-fit': 'cover',
+      'width': '100%',
+      'height': '100%'
     };
 
     // Aplicar borda arredondada na imagem também
@@ -359,6 +478,11 @@ export class SlideCanvas {
 
   isText(element: ImageElement | TextElement): element is TextElement {
     return element.type === 'text';
+  }
+
+  // Verifica se é uma imagem de fundo (não deve ter opções de edição)
+  isBackgroundImage(element: ImageElement | TextElement): boolean {
+    return element.metadata?.['backgroundDecor'] === true;
   }
 
   asImage(element: ImageElement | TextElement): ImageElement {

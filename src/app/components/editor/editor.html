@@ -2,13 +2,54 @@
   <app-toolbar 
     (openBatchImport)="openBatchImport()"
     (startPresentation)="startPresentation()"
+    (openProjects)="openProjects()"
+    (saveProject)="saveProject()"
   ></app-toolbar>
   
   <div class="editor-main">
-    <app-slide-list></app-slide-list>
-    <app-slide-canvas></app-slide-canvas>
-    <app-sidebar></app-sidebar>
+    <!-- Painel de Slides (esquerda) -->
+    <div class="panel-slide-list" [class.hidden]="!showSlideList()">
+      <app-slide-list></app-slide-list>
+    </div>
+    
+    <!-- Área principal do Canvas -->
+    <div class="canvas-area">
+      <app-slide-canvas></app-slide-canvas>
+    </div>
+    
+    <!-- Painel Sidebar (direita) -->
+    <div class="panel-sidebar" [class.hidden]="!showSidebar()">
+      <app-sidebar></app-sidebar>
+    </div>
   </div>
+  
+  <!-- Botões flutuantes para mobile -->
+  <div class="mobile-panel-toggles" [class.visible]="isMobile()">
+    <button 
+      class="panel-toggle-btn left"
+      [class.active]="showSlideList()"
+      (click)="toggleSlideList()"
+      title="Slides"
+    >
+      <span class="material-icons-round toggle-icon">collections</span>
+      <span class="toggle-label">Slides</span>
+    </button>
+    
+    <button 
+      class="panel-toggle-btn right"
+      [class.active]="showSidebar()"
+      (click)="toggleSidebar()"
+      title="Opções"
+    >
+      <span class="material-icons-round toggle-icon">settings</span>
+      <span class="toggle-label">Opções</span>
+    </button>
+  </div>
+  
+  <!-- Overlay para fechar painéis em mobile -->
+  @if (isMobile() && (showSlideList() || showSidebar())) {
+    <div class="mobile-overlay" (click)="showSlideList.set(false); showSidebar.set(false)"></div>
+  }
 </div>
 
 <!-- Modal de Importação em Lote -->
@@ -16,3 +57,12 @@
 
 <!-- Modo Apresentação -->
 <app-presentation #presentation></app-presentation>
+
+<!-- Gerenciador de Projetos -->
+@if (showProjectManager()) {
+  <app-project-manager 
+    #projectManager
+    (close)="closeProjects()"
+    (projectLoaded)="closeProjects()"
+  ></app-project-manager>
+}

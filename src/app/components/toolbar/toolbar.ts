@@ -2,6 +2,7 @@ import { Component, inject, ElementRef, ViewChild, Output, EventEmitter } from '
 import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService } from '../../services/google-photos.service';
+import { ProjectStateService } from '../../services/project-state.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -14,13 +15,33 @@ import html2canvas from 'html2canvas';
 export class Toolbar {
   slideService = inject(SlideService);
   googlePhotos = inject(GooglePhotosService);
+  projectState = inject(ProjectStateService);
   
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @Output() openBatchImport = new EventEmitter<void>();
   @Output() startPresentation = new EventEmitter<void>();
   @Output() exportPdf = new EventEmitter<void>();
+  @Output() openProjects = new EventEmitter<void>();
+  @Output() saveProject = new EventEmitter<void>();
 
   isExporting = false;
+  isMobileMenuOpen = false;
+
+  toggleMobileMenu(): void {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+  }
+
+  closeMobileMenu(): void {
+    this.isMobileMenuOpen = false;
+  }
+
+  onOpenProjects(): void {
+    this.openProjects.emit();
+  }
+
+  onSaveProject(): void {
+    this.saveProject.emit();
+  }
 
   onAddImages(): void {
     this.fileInput.nativeElement.click();
@@ -57,6 +78,10 @@ export class Toolbar {
   
   onAlignToGrid(): void {
     this.slideService.alignElementsToGrid();
+  }
+
+  onToggleGridGuides(): void {
+    this.slideService.toggleGridGuides();
   }
 
   onDeleteElement(): void {

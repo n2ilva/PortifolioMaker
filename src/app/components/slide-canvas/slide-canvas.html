@@ -8,16 +8,23 @@
         (click)="onCanvasClick()"
       >
         <!-- Guias de Grade do Layout -->
-        @for (guide of getLayoutGridGuides(slide.layoutId); track $index) {
-          <div 
-            class="layout-grid-guide"
-            [style.left.%]="guide.x"
-            [style.top.%]="guide.y"
-            [style.width.%]="guide.width"
-            [style.height.%]="guide.height"
-          >
-            <span class="grid-guide-label">{{ guide.label }}</span>
-          </div>
+        @if (slideService.showGridGuides()) {
+          @for (guide of getLayoutGridGuides(slide.layoutId); track $index) {
+            <div 
+              class="layout-grid-guide"
+              [style.left.%]="guide.x"
+              [style.top.%]="guide.y"
+              [style.width.%]="guide.width"
+              [style.height.%]="guide.height"
+            >
+              <!-- Marcadores de canto -->
+              <div class="grid-corner-marker top-left"></div>
+              <div class="grid-corner-marker top-right"></div>
+              <div class="grid-corner-marker bottom-left"></div>
+              <div class="grid-corner-marker bottom-right"></div>
+              <span class="grid-guide-label">{{ guide.label }}</span>
+            </div>
+          }
         }
 
         <!-- Linhas Guia de Alinhamento -->
@@ -38,14 +45,24 @@
         @for (element of slide.elements; track element.id) {
           <div 
             class="element"
-            [class.selected]="element.id === slideService.selectedElementId()"
-            [class.hovered]="element.id === hoveredElementId"
+            [class.selected]="element.id === slideService.selectedElementId() && !isBackgroundImage(element)"
+            [class.hovered]="element.id === hoveredElementId && !isBackgroundImage(element)"
+            [class.background-element]="isBackgroundImage(element)"
             [ngStyle]="getElementStyle(element)"
-            (mousedown)="onMouseDown($event, element)"
-            (click)="onElementClick($event, element)"
-            (mouseenter)="onElementMouseEnter($event, element)"
-            (mouseleave)="onElementMouseLeave($event, element)"
+            (mousedown)="!isBackgroundImage(element) && onMouseDown($event, element)"
+            (click)="!isBackgroundImage(element) && onElementClick($event, element)"
+            (mouseenter)="!isBackgroundImage(element) && onElementMouseEnter($event, element)"
+            (mouseleave)="!isBackgroundImage(element) && onElementMouseLeave($event, element)"
           >
+            <!-- Indicador de Proporção Padrão -->
+            @if (element.id === hoveredElementId && hasStandardAspectRatio() && isImage(element) && !isBackgroundImage(element)) {
+              <div class="aspect-ratio-badge">
+                <span class="aspect-ratio-icon material-icons">{{ getAspectRatioInfo()?.icon }}</span>
+                <span class="aspect-ratio-name">{{ getAspectRatioInfo()?.name }}</span>
+                <span class="aspect-ratio-desc">{{ getAspectRatioInfo()?.description }}</span>
+              </div>
+            }
+
             <!-- Elemento de Imagem -->
             @if (isImage(element)) {
               <div class="image-element">
@@ -60,7 +77,7 @@
                   >
                 } @else {
                   <div class="image-placeholder">
-                    <span class="placeholder-icon">📷</span>
+                    <span class="placeholder-icon material-icons">add_photo_alternate</span>
                     <span class="placeholder-text">Arraste uma imagem</span>
                   </div>
                 }
@@ -81,76 +98,7 @@
               >{{ asText(element).content }}</div>
             }
 
-            <!-- Menu Flutuante no Hover (somente para imagens) -->
-            @if (element.id === hoveredElementId && isImage(element)) {
-              <div 
-                class="hover-menu"
-                (mouseleave)="onHoverMenuMouseLeave()"
-                (click)="$event.stopPropagation()"
-                (mousedown)="$event.stopPropagation()"
-              >
-                <div class="hover-menu-content">
-                  <!-- Controle de Borda Arredondada -->
-                  <div class="hover-menu-group">
-                    <label class="hover-menu-label">Bordas</label>
-                    <div class="border-presets">
-                      <button 
-                        class="preset-btn" 
-                        [class.active]="borderRadiusValue === 0"
-                        (click)="setBorderRadius(element, 0); $event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        title="Sem arredondamento"
-                      >⬜</button>
-                      <button 
-                        class="preset-btn" 
-                        [class.active]="borderRadiusValue === 8"
-                        (click)="setBorderRadius(element, 8); $event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        title="Levemente arredondado"
-                      >▢</button>
-                      <button 
-                        class="preset-btn" 
-                        [class.active]="borderRadiusValue === 16"
-                        (click)="setBorderRadius(element, 16); $event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        title="Arredondado"
-                      >◽</button>
-                      <button 
-                        class="preset-btn" 
-                        [class.active]="borderRadiusValue >= 50"
-                        (click)="setBorderRadius(element, 50); $event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        title="Muito arredondado"
-                      >⬭</button>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
-                      [(ngModel)]="borderRadiusValue"
-                      (input)="onBorderRadiusChange(element)"
-                      (mousedown)="$event.stopPropagation()"
-                      class="radius-slider"
-                      title="Ajustar arredondamento da borda"
-                      aria-label="Arredondamento da borda"
-                    >
-                  </div>
 
-                  <!-- Toggle de Sombra -->
-                  <div class="hover-menu-group">
-                    <button 
-                      class="shadow-toggle"
-                      [class.active]="shadowEnabled"
-                      (click)="toggleShadow(element); $event.stopPropagation()"
-                      (mousedown)="$event.stopPropagation()"
-                    >
-                      <span class="shadow-icon">◐</span>
-                      Sombra
-                    </button>
-                  </div>
-                </div>
-              </div>
-            }
             
             <!-- Handles de redimensionamento (quando selecionado) -->
             @if (element.id === slideService.selectedElementId()) {
@@ -173,4 +121,11 @@
       </div>
     }
   </div>
+</div>
+
+<!-- Controle de Zoom fixo abaixo do slide -->
+<div class="zoom-controls-fixed">
+  <button class="zoom-btn" (click)="onZoomOut()" title="Diminuir zoom">−</button>
+  <span class="zoom-value">{{ slideService.zoom() }}%</span>
+  <button class="zoom-btn" (click)="onZoomIn()" title="Aumentar zoom">+</button>
 </div>

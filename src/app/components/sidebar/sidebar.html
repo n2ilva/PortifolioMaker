@@ -190,15 +190,18 @@
                 <button 
                   [class.active]="$any(selectedElement).textAlign === 'left'"
                   (click)="onTextAlignChange('left')"
-                >⬅️</button>
+                  title="Alinhar à esquerda"
+                ><span class="material-icons-round">format_align_left</span></button>
                 <button 
                   [class.active]="$any(selectedElement).textAlign === 'center'"
                   (click)="onTextAlignChange('center')"
-                >↔️</button>
+                  title="Centralizar"
+                ><span class="material-icons-round">format_align_center</span></button>
                 <button 
                   [class.active]="$any(selectedElement).textAlign === 'right'"
                   (click)="onTextAlignChange('right')"
-                >➡️</button>
+                  title="Alinhar à direita"
+                ><span class="material-icons-round">format_align_right</span></button>
               </div>
             </div>
 
@@ -259,6 +262,233 @@
               </div>
             </div>
 
+            <div class="property-group">
+              <label>Proporção da Foto</label>
+              <div class="aspect-ratio-grid">
+                @for (ratio of aspectRatios; track ratio.name) {
+                  <button 
+                    class="aspect-ratio-btn"
+                    [class.active]="getCurrentAspectRatio() === ratio.name"
+                    (click)="onAspectRatioChange(ratio.value)"
+                    [title]="ratio.name"
+                  >
+                    <span class="ratio-icon">{{ ratio.icon }}</span>
+                    <span class="ratio-label">{{ ratio.name }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="property-group">
+              <label>Bordas Arredondadas</label>
+              <div class="border-presets">
+                <button 
+                  class="preset-btn" 
+                  [class.active]="getBorderRadius() === 0"
+                  (click)="onBorderRadiusPreset(0)"
+                  title="Sem arredondamento"
+                >⬜</button>
+                <button 
+                  class="preset-btn" 
+                  [class.active]="getBorderRadius() === 12"
+                  (click)="onBorderRadiusPreset(12)"
+                  title="Levemente arredondado"
+                >▢</button>
+                <button 
+                  class="preset-btn" 
+                  [class.active]="getBorderRadius() === 30"
+                  (click)="onBorderRadiusPreset(30)"
+                  title="Arredondado"
+                >◽</button>
+                <button 
+                  class="preset-btn circular-btn" 
+                  [class.active]="isCircular()"
+                  (click)="onBorderRadiusPreset(500)"
+                  title="Circular / Redondo"
+                >⬤</button>
+              </div>
+              <div class="slider-row">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="500" 
+                  [value]="getBorderRadius()"
+                  (input)="onBorderRadiusSlider($event)"
+                  class="radius-slider"
+                >
+                <span class="slider-value">{{ getBorderRadius() }}px</span>
+              </div>
+            </div>
+
+            <div class="property-group">
+              <label>Sombra</label>
+              <div class="shadow-presets">
+                <button 
+                  class="shadow-preset-btn"
+                  [class.active]="!isShadowEnabled()"
+                  (click)="setShadowPreset('none')"
+                  title="Sem sombra"
+                >
+                  <span class="preset-icon">○</span>
+                  <span class="preset-name">Nenhuma</span>
+                </button>
+                <button 
+                  class="shadow-preset-btn"
+                  [class.active]="isShadowEnabled() && getShadowBlur() <= 10"
+                  (click)="setShadowPreset('soft')"
+                  title="Sombra suave"
+                >
+                  <span class="preset-icon">◐</span>
+                  <span class="preset-name">Suave</span>
+                </button>
+                <button 
+                  class="shadow-preset-btn"
+                  [class.active]="isShadowEnabled() && getShadowBlur() > 10 && getShadowBlur() <= 25"
+                  (click)="setShadowPreset('medium')"
+                  title="Sombra média"
+                >
+                  <span class="preset-icon">◑</span>
+                  <span class="preset-name">Média</span>
+                </button>
+                <button 
+                  class="shadow-preset-btn"
+                  [class.active]="isShadowEnabled() && getShadowBlur() > 25"
+                  (click)="setShadowPreset('strong')"
+                  title="Sombra forte"
+                >
+                  <span class="preset-icon">●</span>
+                  <span class="preset-name">Forte</span>
+                </button>
+              </div>
+
+              @if (isShadowEnabled()) {
+                <div class="shadow-controls">
+                  <div class="shadow-control-row">
+                    <label class="small-label">Desfoque</label>
+                    <div class="slider-row">
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="50" 
+                        [value]="getShadowBlur()"
+                        (input)="onShadowBlurChange($event)"
+                        class="shadow-slider"
+                      >
+                      <span class="slider-value">{{ getShadowBlur() }}px</span>
+                    </div>
+                  </div>
+
+                  <div class="shadow-control-row">
+                    <label class="small-label">Direção</label>
+                    <div class="direction-grid">
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'top-left'"
+                        (click)="setShadowDirection('top-left')"
+                        title="Superior esquerda"
+                      >↖</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'top'"
+                        (click)="setShadowDirection('top')"
+                        title="Superior"
+                      >↑</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'top-right'"
+                        (click)="setShadowDirection('top-right')"
+                        title="Superior direita"
+                      >↗</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'left'"
+                        (click)="setShadowDirection('left')"
+                        title="Esquerda"
+                      >←</button>
+                      <button 
+                        class="direction-btn center-btn"
+                        [class.active]="getShadowDirection() === 'center'"
+                        (click)="setShadowDirection('center')"
+                        title="Central (igual em todos os lados)"
+                      >◎</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'right'"
+                        (click)="setShadowDirection('right')"
+                        title="Direita"
+                      >→</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'bottom-left'"
+                        (click)="setShadowDirection('bottom-left')"
+                        title="Inferior esquerda"
+                      >↙</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'bottom'"
+                        (click)="setShadowDirection('bottom')"
+                        title="Inferior"
+                      >↓</button>
+                      <button 
+                        class="direction-btn"
+                        [class.active]="getShadowDirection() === 'bottom-right'"
+                        (click)="setShadowDirection('bottom-right')"
+                        title="Inferior direita"
+                      >↘</button>
+                    </div>
+                  </div>
+
+                  <div class="shadow-control-row">
+                    <label class="small-label">Cor da Sombra</label>
+                    <div class="shadow-color-options">
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(0,0,0,0.3)'"
+                        (click)="setShadowColor('rgba(0,0,0,0.3)')"
+                        style="background: rgba(0,0,0,0.5)"
+                        title="Preto"
+                      ></button>
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(0,0,0,0.6)'"
+                        (click)="setShadowColor('rgba(0,0,0,0.6)')"
+                        style="background: rgba(0,0,0,0.8)"
+                        title="Preto forte"
+                      ></button>
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(59,130,246,0.4)'"
+                        (click)="setShadowColor('rgba(59,130,246,0.4)')"
+                        style="background: rgba(59,130,246,0.7)"
+                        title="Azul"
+                      ></button>
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(168,85,247,0.4)'"
+                        (click)="setShadowColor('rgba(168,85,247,0.4)')"
+                        style="background: rgba(168,85,247,0.7)"
+                        title="Roxo"
+                      ></button>
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(236,72,153,0.4)'"
+                        (click)="setShadowColor('rgba(236,72,153,0.4)')"
+                        style="background: rgba(236,72,153,0.7)"
+                        title="Rosa"
+                      ></button>
+                      <button 
+                        class="color-btn"
+                        [class.active]="getShadowColor() === 'rgba(34,197,94,0.4)'"
+                        (click)="setShadowColor('rgba(34,197,94,0.4)')"
+                        style="background: rgba(34,197,94,0.7)"
+                        title="Verde"
+                      ></button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
             @if ($any(selectedElement).orderNumber) {
               <div class="property-group">
                 <label>Ordem da Imagem</label>
@@ -277,6 +507,17 @@
               <span>W: {{ selectedElement.position.width | number:'1.0-0' }}%</span>
               <span>H: {{ selectedElement.position.height | number:'1.0-0' }}%</span>
             </div>
+          </div>
+
+          <!-- Botão Excluir Elemento -->
+          <div class="property-group delete-section">
+            <button 
+              class="btn-delete-element"
+              (click)="onDeleteElement()"
+              title="Excluir este elemento"
+            >
+              <span class="material-icons-round">delete</span> Excluir Elemento
+            </button>
           </div>
         } @else {
           <p class="no-selection">Selecione um elemento para editar</p>
@@ -323,10 +564,10 @@
                       class="btn-remove-theme"
                       (click)="removeCustomTheme(theme, $event)"
                       title="Remover tema"
-                    >✕</button>
+                    ><span class="material-icons">close</span></button>
                   }
                   @if (isThemeSelected(theme.id)) {
-                    <span class="theme-check">✓</span>
+                    <span class="theme-check material-icons">check</span>
                   }
                 </div>
               }
@@ -377,7 +618,7 @@
     <div class="add-image-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Adicionar Imagem de Fundo</h3>
-        <button class="btn-close-modal" (click)="closeAddImageModal()">✕</button>
+        <button class="btn-close-modal" (click)="closeAddImageModal()"><span class="material-icons">close</span></button>
       </div>
       
       <div class="modal-body">
@@ -388,7 +629,7 @@
               <img [src]="newImagePreview" class="image-preview" alt="Preview">
             } @else {
               <div class="upload-placeholder">
-                <span class="upload-icon">📷</span>
+                <span class="upload-icon material-icons">add_photo_alternate</span>
                 <span>Clique para selecionar</span>
               </div>
             }

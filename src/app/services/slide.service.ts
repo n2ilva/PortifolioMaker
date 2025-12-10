@@ -48,6 +48,7 @@ export class SlideService {
   private zoomSignal = signal<number>(100);
   private alignmentGuidesSignal = signal<AlignmentGuide[]>([]);
   private hoveredElementIdSignal = signal<string | null>(null);
+  private showGridGuidesSignal = signal<boolean>(true); // Controle de visibilidade da grade
 
   // Computed values
   slides = computed(() => this.slidesSignal());
@@ -56,6 +57,7 @@ export class SlideService {
   zoom = computed(() => this.zoomSignal());
   alignmentGuides = computed(() => this.alignmentGuidesSignal());
   hoveredElementId = computed(() => this.hoveredElementIdSignal());
+  showGridGuides = computed(() => this.showGridGuidesSignal()); // Exposição pública
   
   currentSlide = computed(() => {
     const slides = this.slidesSignal();
@@ -137,6 +139,59 @@ export class SlideService {
   // Limpar todos os dados salvos (para reset)
   clearStorage(): void {
     localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // Carregar dados de um projeto externo
+  loadProjectData(slides: Slide[], currentSlideId: string | null): void {
+    if (slides && slides.length > 0) {
+      // Restaurar slides com todas as propriedades dos elementos preservadas
+      const processedSlides = slides.map(slide => ({
+        ...slide,
+        createdAt: new Date(slide.createdAt),
+        updatedAt: new Date(slide.updatedAt),
+        // Garantir que os elementos tenham todas as propriedades
+        elements: (slide.elements || []).map(element => {
+          // Preservar todas as propriedades do elemento (src, border, shadow, etc.)
+          const processedElement = { ...element };
+          
+          // Garantir valores padrão para propriedades que podem estar faltando
+          if (!processedElement.border) {
+            processedElement.border = {
+              radius: 0,
+              width: 0,
+              color: '#000000',
+              style: 'none'
+            };
+          }
+          
+          if (!processedElement.shadow) {
+            processedElement.shadow = {
+              enabled: false,
+              x: 0,
+              y: 4,
+              blur: 8,
+              color: 'rgba(0,0,0,0.3)'
+            };
+          }
+          
+          return processedElement;
+        })
+      }));
+      
+      this.slidesSignal.set(processedSlides);
+      this.currentSlideIdSignal.set(currentSlideId || processedSlides[0].id);
+      this.selectedElementIdSignal.set(null);
+      this.saveToStorage();
+    }
+  }
+
+  // Resetar para um novo projeto vazio
+  resetToNewProject(): void {
+    this.clearStorage();
+    this.slidesSignal.set([]);
+    this.currentSlideIdSignal.set(null);
+    this.selectedElementIdSignal.set(null);
+    this.createSlide('layout-3-images-1-text');
   }
 
   // Atualizar nome do slide atual
@@ -538,7 +593,7 @@ export class SlideService {
           type: 'image' as const,
           src: '',
           alt: `Imagem ${index + 1}`,
-          fit: 'cover' as const
+          fit: 'contain' as const
         };
       } else {
         return {
@@ -648,7 +703,7 @@ export class SlideService {
         type: 'image',
         src,
         alt: 'Nova imagem',
-        fit: 'cover',
+        fit: 'contain',
         orderNumber,
         position: { x: 10, y: 10, width: 30, height: 30 },
         zIndex: slide.elements.length + 1,
@@ -828,7 +883,7 @@ export class SlideService {
           type: 'image',
           src,
           alt: file.name,
-          fit: 'cover',
+          fit: 'contain',
           orderNumber,
           position: {
             x: 10 + offsetX,
@@ -855,14 +910,79 @@ export class SlideService {
     });
   }
 
-  // Alinhar todos os elementos do slide atual à grade
-  alignElementsToGrid(gridStep: number = 5): void {
+  // Alinhar todos os elementos do slide atual às guias de layout mais próximas
+  alignElementsToGrid(): void {
     const slide = this.currentSlide();
     if (!slide) return;
 
-    const snap = (value: number) => {
-      return Math.round(value / gridStep) * gridStep;
-    };
+    // Obter as guias do layout atual
+    const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
+    const gridGuides = layout?.gridGuides || [];
+
+    // Se não houver guias de layout, alinhar a uma grade simples
+    if (gridGuides.length === 0) {
+      this.alignToSimpleGrid(5);
+      return;
+    }
+
+    this.slidesSignal.update(slides =>
+      slides.map(s => {
+        if (s.id !== slide.id) return s;
+
+        const alignedElements = s.elements.map(element => {
+          // Encontrar a guia mais próxima do centro do elemento
+          const elementCenterX = element.position.x + element.position.width / 2;
+          const elementCenterY = element.position.y + element.position.height / 2;
+
+          let closestGuide = gridGuides[0];
+          let closestDistance = Infinity;
+
+          for (const guide of gridGuides) {
+            const guideCenterX = guide.x + guide.width / 2;
+            const guideCenterY = guide.y + guide.height / 2;
+            
+            // Distância euclidiana do centro do elemento ao centro da guia
+            const distance = Math.sqrt(
+              Math.pow(elementCenterX - guideCenterX, 2) + 
+              Math.pow(elementCenterY - guideCenterY, 2)
+            );
+
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestGuide = guide;
+            }
+          }
+
+          // Alinhar o elemento à guia mais próxima
+          // Centralizar o elemento na guia
+          const newX = closestGuide.x + (closestGuide.width - element.position.width) / 2;
+          const newY = closestGuide.y + (closestGuide.height - element.position.height) / 2;
+
+          return {
+            ...element,
+            position: {
+              ...element.position,
+              x: Math.max(0, Math.min(100 - element.position.width, newX)),
+              y: Math.max(0, Math.min(100 - element.position.height, newY))
+            }
+          };
+        });
+
+        return {
+          ...s,
+          elements: alignedElements,
+          updatedAt: new Date()
+        };
+      })
+    );
+  }
+
+  // Alinhar a uma grade numérica simples (fallback)
+  private alignToSimpleGrid(gridStep: number): void {
+    const slide = this.currentSlide();
+    if (!slide) return;
+
+    const snap = (value: number) => Math.round(value / gridStep) * gridStep;
 
     this.slidesSignal.update(slides =>
       slides.map(s => {
@@ -933,7 +1053,7 @@ export class SlideService {
         type: 'image',
         src: dataUrl,
         alt: filename,
-        fit: 'cover',
+        fit: 'contain',
         position: {
           x: 5 + (existingImages.length % 3) * 32,
           y: 5 + Math.floor(existingImages.length / 3) * 32,
@@ -1163,6 +1283,16 @@ export class SlideService {
     this.zoomSignal.set(Math.max(25, Math.min(200, zoom)));
   }
 
+  // Toggle visibilidade das linhas de grade
+  toggleGridGuides(): void {
+    this.showGridGuidesSignal.update(v => !v);
+  }
+
+  // Definir visibilidade das linhas de grade
+  setGridGuidesVisible(visible: boolean): void {
+    this.showGridGuidesSignal.set(visible);
+  }
+
   // Atualizar cor de fundo do slide
   updateSlideBackground(color: string): void {
     this.slidesSignal.update(slides =>
@@ -1225,6 +1355,64 @@ export class SlideService {
     if (Math.abs(movingCenterY - canvasCenterY) < this.SNAP_THRESHOLD) {
       guides.push({ type: 'horizontal', position: canvasCenterY, visible: true });
       snappedPosition.y = canvasCenterY - newPosition.height / 2;
+    }
+
+    // ==========================================
+    // ALINHAMENTO COM GUIAS DO LAYOUT
+    // ==========================================
+    const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
+    if (layout?.gridGuides) {
+      for (const gridGuide of layout.gridGuides) {
+        const guideLeft = gridGuide.x;
+        const guideRight = gridGuide.x + gridGuide.width;
+        const guideTop = gridGuide.y;
+        const guideBottom = gridGuide.y + gridGuide.height;
+        const guideCenterX = gridGuide.x + gridGuide.width / 2;
+        const guideCenterY = gridGuide.y + gridGuide.height / 2;
+
+        // Snap para a posição exata da guia (encaixar perfeitamente)
+        // Esquerda do elemento com esquerda da guia
+        if (Math.abs(movingLeft - guideLeft) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'vertical', position: guideLeft, visible: true });
+          snappedPosition.x = guideLeft;
+        }
+        // Direita do elemento com direita da guia
+        if (Math.abs(movingRight - guideRight) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'vertical', position: guideRight, visible: true });
+          snappedPosition.x = guideRight - newPosition.width;
+        }
+        // Centro do elemento com centro da guia
+        if (Math.abs(movingCenterX - guideCenterX) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'vertical', position: guideCenterX, visible: true });
+          snappedPosition.x = guideCenterX - newPosition.width / 2;
+        }
+
+        // Topo do elemento com topo da guia
+        if (Math.abs(movingTop - guideTop) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'horizontal', position: guideTop, visible: true });
+          snappedPosition.y = guideTop;
+        }
+        // Base do elemento com base da guia
+        if (Math.abs(movingBottom - guideBottom) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'horizontal', position: guideBottom, visible: true });
+          snappedPosition.y = guideBottom - newPosition.height;
+        }
+        // Centro do elemento com centro da guia
+        if (Math.abs(movingCenterY - guideCenterY) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'horizontal', position: guideCenterY, visible: true });
+          snappedPosition.y = guideCenterY - newPosition.height / 2;
+        }
+
+        // Snap para encaixar completamente na área da guia (mesmo tamanho)
+        // Se o elemento está próximo de ocupar a área toda da guia
+        if (Math.abs(movingLeft - guideLeft) < this.SNAP_THRESHOLD && 
+            Math.abs(movingTop - guideTop) < this.SNAP_THRESHOLD) {
+          guides.push({ type: 'vertical', position: guideLeft, visible: true });
+          guides.push({ type: 'horizontal', position: guideTop, visible: true });
+          snappedPosition.x = guideLeft;
+          snappedPosition.y = guideTop;
+        }
+      }
     }
 
     // Verificar alinhamento com outros elementos
@@ -1514,7 +1702,7 @@ export class SlideService {
           alt: photo.name,
           position,
           zIndex: slotIndex + 1,
-          fit: 'cover',
+          fit: 'contain',
           border: { ...DEFAULT_BORDER },
           shadow: { ...DEFAULT_SHADOW },
           opacity: 100,
