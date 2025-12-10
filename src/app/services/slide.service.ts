@@ -1471,13 +1471,12 @@ export class SlideService {
       const slidePhotos = photosBySlide.get(slideNumber) || [];
       const slideIndex = slideNumber - 1;
       
-      // Obter slides atualizados (importante para pegar novos slides criados)
+      // Obter slides atualizados
       const currentSlides = this.slidesSignal();
       
-      // Verificar se o slide existe
       if (slideIndex >= currentSlides.length) {
         slidesCreated++;
-        continue; // Slide deveria ter sido criado antes
+        continue;
       }
 
       const slide = currentSlides[slideIndex];
@@ -1486,53 +1485,57 @@ export class SlideService {
       // Ordenar fotos pelo slot
       const sortedPhotos = slidePhotos.sort((a, b) => a.slotInSlide - b.slotInSlide);
 
-      // Obter elementos de imagem do slide (não decorativos), ordenados por posição
-      const imageElements = slide.elements
-        .filter(e => {
-          if (e.type !== 'image') return false;
-          const imgElement = e as ImageElement;
-          return !imgElement.metadata?.['backgroundDecor'];
-        })
-        .sort((a, b) => {
-          // Ordenar por posição Y e depois X para manter ordem visual
-          if (a.position.y !== b.position.y) {
-            return a.position.y - b.position.y;
-          }
-          return a.position.x - b.position.x;
-        });
+      // Obter config do slide para saber o layout
+      const config = slideConfigs.find(c => c.slideNumber === slideNumber);
+      const layout = this.layoutTemplates.find(l => l.id === (config?.layoutId || slide.layoutId));
 
-      // Atribuir fotos aos slots
+      // Criar elementos de imagem baseado nas fotos
       for (const photo of sortedPhotos) {
         const slotIndex = photo.slotInSlide - 1;
-        const targetElement = imageElements[slotIndex];
-
-        if (targetElement) {
-          this.slidesSignal.update(allSlides =>
-            allSlides.map((s, idx) => {
-              if (idx === slideIndex) {
-                return {
-                  ...s,
-                  elements: s.elements.map(element => {
-                    if (element.id === targetElement.id) {
-                      return {
-                        ...element,
-                        src: photo.dataUrl,
-                        alt: photo.name,
-                        orderNumber: photo.orderNumber
-                      } as ImageElement;
-                    }
-                    return element;
-                  }),
-                  updatedAt: new Date()
-                };
-              }
-              return s;
-            })
-          );
-          imported++;
-        } else {
-          console.warn(`Slot ${photo.slotInSlide} não encontrado no slide ${slideNumber}`);
+        
+        // Calcular posição baseado no gridGuide se disponível
+        let position = { x: 5 + (slotIndex * 32), y: 5, width: 30, height: 55 };
+        
+        if (layout?.gridGuides && layout.gridGuides[slotIndex]) {
+          const guide = layout.gridGuides[slotIndex];
+          position = {
+            x: guide.x,
+            y: guide.y,
+            width: guide.width,
+            height: guide.height
+          };
         }
+
+        // Criar novo elemento de imagem
+        const newImageElement: ImageElement = {
+          id: this.generateId(),
+          type: 'image',
+          src: photo.dataUrl,
+          alt: photo.name,
+          position,
+          zIndex: slotIndex + 1,
+          fit: 'cover',
+          border: { ...DEFAULT_BORDER },
+          shadow: { ...DEFAULT_SHADOW },
+          opacity: 100,
+          rotation: 0
+        };
+
+        // Adicionar elemento ao slide
+        this.slidesSignal.update(allSlides =>
+          allSlides.map((s, idx) => {
+            if (idx === slideIndex) {
+              return {
+                ...s,
+                elements: [...s.elements, newImageElement],
+                updatedAt: new Date()
+              };
+            }
+            return s;
+          })
+        );
+        
+        imported++;
       }
     }
 
