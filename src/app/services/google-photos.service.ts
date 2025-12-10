@@ -86,19 +86,32 @@ export class GooglePhotosService {
       return;
     }
     
+    // Limpar token anterior
+    this.accessToken = null;
+    this.error.set(null);
+    
     // Forçar prompt de consentimento para garantir novos escopos
     this.tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
   logout(): void {
+    // Revogar token no Google
     if (this.accessToken && typeof google !== 'undefined') {
-      google.accounts.oauth2.revoke(this.accessToken);
+      google.accounts.oauth2.revoke(this.accessToken, () => {
+        console.log('Google Photos: Token revogado');
+      });
     }
+    
+    // Limpar estado local
     this.accessToken = null;
     this.isAuthenticated.set(false);
     this.userInfo.set(null);
     this.albums.set([]);
     this.photos.set([]);
+    this.error.set(null);
+    
+    // Reinicializar cliente para garantir novos escopos no próximo login
+    this.initializeGoogleClient();
   }
 
   private async fetchUserInfo(): Promise<void> {
