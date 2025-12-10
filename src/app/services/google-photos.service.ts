@@ -247,13 +247,8 @@ export class GooglePhotosService {
         console.error('Google Photos: Erro na resposta:', response.status, errorData);
         
         if (response.status === 403) {
-          if (errorData.error?.message?.includes('insufficient authentication scopes')) {
-            this.error.set('Permissões insuficientes. Faça logout e login novamente.');
-          } else if (errorData.error?.message?.includes('disabled') || errorData.error?.message?.includes('not been used')) {
-            this.error.set('A Photos Library API não está habilitada. Ative-a no Google Cloud Console.');
-          } else {
-            this.error.set('Acesso negado. Verifique as permissões no Google Cloud Console.');
-          }
+          // Qualquer erro 403 significa problema de configuração no Google Cloud
+          this.error.set('Erro 403: A Photos Library API precisa ser habilitada no Google Cloud Console. Clique no link abaixo.');
         } else if (response.status === 401) {
           this.error.set('Sessão expirada. Faça login novamente.');
           this.logout();
