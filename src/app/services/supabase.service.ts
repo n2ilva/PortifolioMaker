@@ -300,7 +300,7 @@ export class SupabaseService {
     }
   }
 
-  async createProject(name: string, slides: any[]): Promise<SupabaseProject | null> {
+  async createProject(name: string, slides: any[], thumbnail?: string): Promise<SupabaseProject | null> {
     const user = this.userSignal();
     if (!user) {
       this.errorSignal.set('Usuário não autenticado');
@@ -314,7 +314,7 @@ export class SupabaseService {
           user_id: user.id,
           name,
           slides,
-          thumbnail: null
+          thumbnail: thumbnail || null
         })
         .select()
         .single();

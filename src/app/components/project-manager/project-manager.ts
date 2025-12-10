@@ -169,6 +169,93 @@ export class ProjectManager implements OnInit {
     this.pendingAction = null;
   }
   
+  // ==================== GERAR THUMBNAIL ====================
+  
+  /**
+   * Gera uma thumbnail do primeiro slide para usar como capa do projeto
+   */
+  private async generateThumbnail(): Promise<string | undefined> {
+    const slides = this.slideService.slides();
+    if (slides.length === 0) return undefined;
+    
+    // Salvar estado atual
+    const currentSlideId = this.slideService.currentSlideId();
+    const currentZoom = this.slideService.zoom();
+    
+    try {
+      // Selecionar o primeiro slide
+      this.slideService.selectSlide(slides[0].id);
+      this.slideService.setZoom(100);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const slideCanvas = document.querySelector('.canvas-wrapper .canvas') as HTMLElement;
+      if (!slideCanvas) return undefined;
+      
+      // Criar container temporário para a thumbnail
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = `
+        position: fixed;
+        left: -9999px;
+        top: 0;
+        width: 400px;
+        height: 225px;
+        overflow: hidden;
+        background: ${slides[0].backgroundColor || '#ffffff'};
+      `;
+      
+      const clonedCanvas = slideCanvas.cloneNode(true) as HTMLElement;
+      clonedCanvas.style.cssText = `
+        width: 400px !important;
+        height: 225px !important;
+        transform: none !important;
+        position: relative;
+        background: ${slides[0].backgroundColor || '#ffffff'};
+      `;
+      
+      // Remover elementos de UI (seleção, guias, etc)
+      clonedCanvas.querySelectorAll('.selected, .hovered').forEach(el => {
+        el.classList.remove('selected', 'hovered');
+      });
+      clonedCanvas.querySelectorAll('.alignment-guide, .resize-handle, .layout-grid-guide').forEach(el => el.remove());
+      
+      tempContainer.appendChild(clonedCanvas);
+      document.body.appendChild(tempContainer);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(clonedCanvas, {
+        width: 400,
+        height: 225,
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: slides[0].backgroundColor || '#ffffff',
+        logging: false
+      });
+      
+      document.body.removeChild(tempContainer);
+      
+      // Converter para base64 com qualidade reduzida para economizar espaço
+      const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+      
+      // Restaurar estado
+      if (currentSlideId) {
+        this.slideService.selectSlide(currentSlideId);
+      }
+      this.slideService.setZoom(currentZoom);
+      
+      return thumbnail;
+    } catch (error) {
+      console.error('Erro ao gerar thumbnail:', error);
+      // Restaurar estado mesmo em caso de erro
+      if (currentSlideId) {
+        this.slideService.selectSlide(currentSlideId);
+      }
+      this.slideService.setZoom(currentZoom);
+      return undefined;
+    }
+  }
+  
   // ==================== SALVAR PROJETO ====================
   
   openSaveDialog() {
@@ -186,6 +273,9 @@ export class ProjectManager implements OnInit {
       const slides = this.slideService.slides();
       const currentSlideId = this.slideService.currentSlideId();
       
+      // Gerar thumbnail do primeiro slide
+      const thumbnail = await this.generateThumbnail();
+      
       let savedProjectId: string | undefined;
       
       if (this.saveLocation === 'cloud' && this.supabase.isAuthenticated()) {
@@ -196,14 +286,15 @@ export class ProjectManager implements OnInit {
           // Atualizar projeto existente na nuvem
           const success = await this.supabase.updateProject(existingProjectId, {
             name: this.saveProjectName,
-            slides
+            slides,
+            thumbnail: thumbnail || null
           });
           if (success) {
             savedProjectId = existingProjectId;
           }
         } else {
           // Criar novo projeto
-          const project = await this.supabase.createProject(this.saveProjectName, slides);
+          const project = await this.supabase.createProject(this.saveProjectName, slides, thumbnail);
           if (project) {
             savedProjectId = project.id;
           }
@@ -214,7 +305,8 @@ export class ProjectManager implements OnInit {
           this.saveProjectName,
           slides,
           currentSlideId,
-          this.projectState.currentProjectId() || undefined
+          this.projectState.currentProjectId() || undefined,
+          thumbnail
         );
         
         if (result.success) {
