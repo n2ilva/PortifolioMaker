@@ -24,7 +24,12 @@ export interface GoogleAlbum {
 })
 export class GooglePhotosService {
   private readonly CLIENT_ID = '1093612348738-43kgglh5k9v19nmv04uhf9nufjrljugo.apps.googleusercontent.com';
-  private readonly SCOPES = 'https://www.googleapis.com/auth/photoslibrary.readonly';
+  // Escopos necessários: biblioteca de fotos + info do usuário
+  private readonly SCOPES = [
+    'https://www.googleapis.com/auth/photoslibrary.readonly',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ].join(' ');
   
   private tokenClient: any = null;
   private accessToken: string | null = null;
@@ -65,6 +70,9 @@ export class GooglePhotosService {
             this.accessToken = response.access_token;
             this.isAuthenticated.set(true);
             this.fetchUserInfo();
+            console.log('Google Photos: Login bem sucedido, escopos:', response.scope);
+          } else if (response.error) {
+            console.error('Google Photos: Erro no login:', response.error);
           }
         },
       });
@@ -77,7 +85,8 @@ export class GooglePhotosService {
       return;
     }
     
-    this.tokenClient.requestAccessToken();
+    // Forçar prompt de consentimento para garantir novos escopos
+    this.tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
   logout(): void {
