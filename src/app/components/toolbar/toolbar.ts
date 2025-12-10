@@ -1,4 +1,4 @@
-import { Component, inject, ElementRef, ViewChild, Output, EventEmitter, AfterViewChecked } from '@angular/core';
+import { Component, inject, ElementRef, ViewChild, Output, EventEmitter, AfterViewChecked, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService } from '../../services/google-photos.service';
@@ -29,6 +29,27 @@ export class Toolbar implements AfterViewChecked {
   isMobileMenuOpen = false;
   isEditingName = false;
   private shouldFocusInput = false;
+
+  // Atalho de teclado Ctrl+Z para desfazer
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent): void {
+    // Ctrl+Z ou Cmd+Z (Mac)
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+      // Não desfazer se estiver em um input ou textarea
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      
+      event.preventDefault();
+      this.undo();
+    }
+  }
+
+  // Desfazer última alteração
+  undo(): void {
+    this.slideService.undo();
+  }
 
   ngAfterViewChecked(): void {
     if (this.shouldFocusInput && this.projectNameInput) {

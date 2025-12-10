@@ -22,7 +22,6 @@
               <div class="grid-corner-marker top-right"></div>
               <div class="grid-corner-marker bottom-left"></div>
               <div class="grid-corner-marker bottom-right"></div>
-              <span class="grid-guide-label">{{ guide.label }}</span>
             </div>
           }
         }
@@ -44,11 +43,14 @@
 
         @for (element of slide.elements; track element.id) {
           <div 
-            class="element"
+            class="element {{ getAnimationClasses(element) }}"
             [class.selected]="element.id === slideService.selectedElementId() && !isBackgroundImage(element)"
             [class.hovered]="element.id === hoveredElementId && !isBackgroundImage(element)"
             [class.background-element]="isBackgroundImage(element)"
             [ngStyle]="getElementStyle(element)"
+            [style.animation-duration]="element.animation?.type !== 'none' && previewAnimationElementId === element.id ? element.animation?.duration + 's' : null"
+            [style.animation-delay]="element.animation?.type !== 'none' && previewAnimationElementId === element.id ? element.animation?.delay + 's' : null"
+            [style.animation-timing-function]="element.animation?.type !== 'none' && previewAnimationElementId === element.id ? element.animation?.easing : null"
             (mousedown)="!isBackgroundImage(element) && onMouseDown($event, element)"
             (click)="!isBackgroundImage(element) && onElementClick($event, element)"
             (mouseenter)="!isBackgroundImage(element) && onElementMouseEnter($event, element)"

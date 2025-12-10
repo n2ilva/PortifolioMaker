@@ -382,14 +382,9 @@
 }
 
 .text-element {
-  width: 100%;
-  min-height: 100%;
-  padding: 10px;
+  display: inline-block;
+  padding: 8px 12px;
   overflow: visible;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: pre-wrap;
   outline: none;
   cursor: move;
   box-sizing: border-box;
@@ -399,6 +394,8 @@
   cursor: text;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 0 2px #00d5ff, 0 4px 12px rgba(0, 213, 255, 0.3);
+  white-space: pre-wrap;
+  min-width: 50px;
 }
 
 .text-element:not(.editing)::after {

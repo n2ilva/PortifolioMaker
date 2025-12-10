@@ -55,6 +55,13 @@ export class SlideService {
   private alignmentGuidesSignal = signal<AlignmentGuide[]>([]);
   private hoveredElementIdSignal = signal<string | null>(null);
   private showGridGuidesSignal = signal<boolean>(true); // Controle de visibilidade da grade
+  private customGridGuidesSignal = signal<{ x: number; y: number; width: number; height: number; label: string }[] | null>(null);
+
+  // Sistema de Undo (desfazer)
+  private readonly MAX_HISTORY = 5;
+  private historyStack: { slides: Slide[], currentSlideId: string | null }[] = [];
+  private isUndoing = false; // Flag para evitar salvar no histórico durante undo
+  canUndo = signal<boolean>(false);
 
   // Computed values
   slides = computed(() => this.slidesSignal());
@@ -64,6 +71,7 @@ export class SlideService {
   alignmentGuides = computed(() => this.alignmentGuidesSignal());
   hoveredElementId = computed(() => this.hoveredElementIdSignal());
   showGridGuides = computed(() => this.showGridGuidesSignal()); // Exposição pública
+  currentGridGuides = computed(() => this.customGridGuidesSignal()); // Guias de grade personalizadas
   
   currentSlide = computed(() => {
     const slides = this.slidesSignal();
@@ -148,6 +156,60 @@ export class SlideService {
   // Limpar todos os dados salvos (para reset)
   clearStorage(): void {
     localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // ============== Sistema de Undo (Desfazer) ==============
+  
+  // Salvar estado atual no histórico antes de uma alteração
+  saveToHistory(): void {
+    if (this.isUndoing) return; // Não salvar durante undo
+    
+    // Fazer deep copy do estado atual
+    const currentState = {
+      slides: JSON.parse(JSON.stringify(this.slidesSignal())),
+      currentSlideId: this.currentSlideIdSignal()
+    };
+    
+    // Adicionar ao histórico
+    this.historyStack.push(currentState);
+    
+    // Manter apenas os últimos MAX_HISTORY estados
+    if (this.historyStack.length > this.MAX_HISTORY) {
+      this.historyStack.shift();
+    }
+    
+    this.canUndo.set(this.historyStack.length > 0);
+  }
+
+  // Desfazer última alteração
+  undo(): void {
+    if (this.historyStack.length === 0) return;
+    
+    this.isUndoing = true;
+    
+    const previousState = this.historyStack.pop()!;
+    
+    // Restaurar datas como objetos Date
+    const slides = previousState.slides.map(slide => ({
+      ...slide,
+      createdAt: new Date(slide.createdAt),
+      updatedAt: new Date(slide.updatedAt)
+    }));
+    
+    this.slidesSignal.set(slides);
+    this.currentSlideIdSignal.set(previousState.currentSlideId);
+    
+    this.canUndo.set(this.historyStack.length > 0);
+    this.isUndoing = false;
+    
+    // Salvar no storage após undo
+    this.saveToStorage();
+  }
+
+  // Limpar histórico (usar ao carregar novo projeto)
+  clearHistory(): void {
+    this.historyStack = [];
+    this.canUndo.set(false);
   }
 
   // Carregar dados de um projeto externo
@@ -630,8 +692,12 @@ export class SlideService {
     this.selectedElementIdSignal.set(elementId);
   }
 
-  // Atualizar elemento
-  updateElement(elementId: string, updates: Partial<ImageElement | TextElement>): void {
+  // Atualizar elemento (com opção de salvar no histórico)
+  updateElement(elementId: string, updates: Partial<ImageElement | TextElement>, saveHistory = false): void {
+    if (saveHistory) {
+      this.saveToHistory();
+    }
+    
     this.slidesSignal.update(slides => 
       slides.map(slide => {
         if (slide.id !== this.currentSlideIdSignal()) return slide;
@@ -639,11 +705,20 @@ export class SlideService {
         return {
           ...slide,
           updatedAt: new Date(),
-          elements: slide.elements.map(element => 
-            element.id === elementId 
-              ? { ...element, ...updates } as ImageElement | TextElement
-              : element
-          )
+          elements: slide.elements.map(element => {
+            if (element.id !== elementId) return element;
+            
+            // Merge updates, tratando undefined como remoção da propriedade
+            const updated = { ...element };
+            for (const [key, value] of Object.entries(updates)) {
+              if (value === undefined) {
+                delete (updated as any)[key];
+              } else {
+                (updated as any)[key] = value;
+              }
+            }
+            return updated as ImageElement | TextElement;
+          })
         };
       })
     );
@@ -663,6 +738,8 @@ export class SlideService {
   addTextToSlide(): void {
     const slide = this.currentSlide();
     if (!slide) return;
+
+    this.saveToHistory(); // Salvar estado antes de adicionar texto
 
     const newText: TextElement = {
       id: this.generateId(),
@@ -697,6 +774,8 @@ export class SlideService {
   addImageToSlide(src: string, orderNumber?: number): void {
     const slide = this.currentSlide();
     if (!slide) return;
+
+    this.saveToHistory(); // Salvar estado antes de adicionar imagem
 
     // Encontrar próximo slot de imagem vazio ou criar novo
     const emptyImageSlot = slide.elements.find(
@@ -924,9 +1003,15 @@ export class SlideService {
     const slide = this.currentSlide();
     if (!slide) return;
 
-    // Obter as guias do layout atual
-    const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
-    const gridGuides = layout?.gridGuides || [];
+    // Obter as guias do layout atual (incluindo guias personalizadas)
+    let gridGuides: { x: number; y: number; width: number; height: number; label: string }[] = [];
+    
+    if (slide.layoutId === 'layout-custom' && slide.customGridGuides) {
+      gridGuides = slide.customGridGuides;
+    } else {
+      const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
+      gridGuides = layout?.gridGuides || [];
+    }
 
     // Se não houver guias de layout, alinhar a uma grade simples
     if (gridGuides.length === 0) {
@@ -1240,6 +1325,38 @@ export class SlideService {
     );
   }
 
+  // Aplicar layout personalizado com grade customizada
+  applyCustomLayout(gridGuides: { x: number; y: number; width: number; height: number; label: string }[]): void {
+    const slide = this.currentSlide();
+    if (!slide) return;
+
+    this.saveToHistory();
+
+    // Preservar TODOS os elementos existentes (não criar novos elementos vazios)
+    // O layout personalizado apenas define as guias visuais para posicionamento
+    const existingElements = slide.elements;
+
+    // Atualizar layout do slide com guias personalizadas
+    this.slidesSignal.update(slides =>
+      slides.map(s => 
+        s.id === slide.id 
+          ? { 
+              ...s, 
+              layoutId: 'layout-custom',
+              customGridGuides: gridGuides, // Salvar guias no slide
+              elements: existingElements, 
+              updatedAt: new Date()
+            }
+          : s
+      )
+    );
+
+    // Atualizar guias de grade temporariamente para visualização
+    this.customGridGuidesSignal.set(gridGuides);
+    
+    this.saveToStorage();
+  }
+
   // Duplicar slide
   duplicateSlide(slideId: string): void {
     const slide = this.slidesSignal().find(s => s.id === slideId);
@@ -1273,6 +1390,8 @@ export class SlideService {
 
   // Deletar elemento
   deleteElement(elementId: string): void {
+    this.saveToHistory(); // Salvar estado antes de deletar
+    
     this.slidesSignal.update(slides =>
       slides.map(slide => {
         if (slide.id !== this.currentSlideIdSignal()) return slide;
@@ -1294,6 +1413,8 @@ export class SlideService {
 
     const element = slide.elements.find(e => e.id === elementId);
     if (!element) return;
+
+    this.saveToHistory(); // Salvar estado antes de duplicar
 
     // Criar cópia do elemento com novo ID e posição ligeiramente deslocada
     const newElement = {

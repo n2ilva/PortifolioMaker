@@ -1,7 +1,7 @@
 import { Component, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
-import { ImageElement, TextElement } from '../../models/slide.model';
+import { ImageElement, TextElement, AnimationType } from '../../models/slide.model';
 
 @Component({
   selector: 'app-presentation',
@@ -16,6 +16,9 @@ export class PresentationComponent {
   currentSlideIndex = 0;
   showControls = true;
   private controlsTimeout: any;
+  
+  // Controle de animações
+  private animationKey = 0; // Usado para forçar re-render de animações
 
   open(): void {
     this.isOpen = true;
@@ -47,6 +50,7 @@ export class PresentationComponent {
   nextSlide(): void {
     if (this.currentSlideIndex < this.totalSlides - 1) {
       this.currentSlideIndex++;
+      this.resetAnimations();
       this.resetControlsTimeout();
     }
   }
@@ -54,6 +58,7 @@ export class PresentationComponent {
   prevSlide(): void {
     if (this.currentSlideIndex > 0) {
       this.currentSlideIndex--;
+      this.resetAnimations();
       this.resetControlsTimeout();
     }
   }
@@ -61,6 +66,7 @@ export class PresentationComponent {
   goToSlide(index: number): void {
     if (index >= 0 && index < this.totalSlides) {
       this.currentSlideIndex = index;
+      this.resetAnimations();
       this.resetControlsTimeout();
     }
   }
@@ -140,16 +146,17 @@ export class PresentationComponent {
       position: 'absolute',
       left: `${element.position.x}%`,
       top: `${element.position.y}%`,
-      width: `${element.position.width}%`,
       'z-index': `${element.zIndex}`
     };
 
-    // Texto tem altura automática, imagem tem altura fixa
+    // Texto tem tamanho automático baseado no conteúdo, imagem tem dimensões fixas
     if (isTextElement) {
+      styles['width'] = 'auto';
       styles['height'] = 'auto';
-      styles['min-height'] = '30px';
       styles['max-width'] = `calc(100% - ${element.position.x}%)`;
+      styles['white-space'] = 'nowrap';
     } else {
+      styles['width'] = `${element.position.width}%`;
       styles['height'] = `${element.position.height}%`;
     }
 
@@ -201,5 +208,81 @@ export class PresentationComponent {
       'height': '100%',
       'object-fit': element.fit || 'cover'
     };
+  }
+
+  // ============== Métodos de Animação ==============
+  
+  getAnimationKey(): number {
+    return this.animationKey;
+  }
+
+  // Verifica se é uma animação especial de texto
+  isTextAnimation(element: TextElement): boolean {
+    const textAnimations = ['typewriter', 'letterByLetter', 'wordByWord', 'highlight', 'glitch'];
+    return element.animation?.type ? textAnimations.includes(element.animation.type) : false;
+  }
+
+  // Gera classes de animação para o elemento (exceto animações de texto especiais)
+  getAnimationClasses(element: ImageElement | TextElement): string {
+    const classes: string[] = [];
+    
+    if (element.animation && element.animation.type !== 'none') {
+      // Animações de texto especiais são tratadas separadamente
+      const textAnimations = ['typewriter', 'letterByLetter', 'wordByWord', 'highlight', 'glitch'];
+      if (!textAnimations.includes(element.animation.type)) {
+        classes.push('element-animated');
+        classes.push(`animate-${element.animation.type}`);
+        if (element.animation.repeat) {
+          classes.push('animate-repeat');
+        }
+      }
+    }
+    
+    return classes.join(' ');
+  }
+
+  // Quebra o texto em letras para animação letra por letra
+  getLetters(text: string): string[] {
+    return text.split('');
+  }
+
+  // Quebra o texto em palavras para animação palavra por palavra
+  getWords(text: string): string[] {
+    return text.split(' ');
+  }
+
+  // Calcula o delay para cada letra/palavra
+  getCharDelay(index: number, element: TextElement): string {
+    const baseDelay = element.animation?.delay || 0;
+    const duration = element.animation?.duration || 1;
+    const totalChars = element.content.length;
+    const delayPerChar = duration / totalChars;
+    return `${baseDelay + (index * delayPerChar)}s`;
+  }
+
+  getWordDelay(index: number, element: TextElement): string {
+    const baseDelay = element.animation?.delay || 0;
+    const duration = element.animation?.duration || 1;
+    const words = element.content.split(' ');
+    const delayPerWord = duration / words.length;
+    return `${baseDelay + (index * delayPerWord)}s`;
+  }
+
+  // Gera estilos inline de animação
+  getAnimationStyle(element: ImageElement | TextElement): { [key: string]: string } {
+    const styles: { [key: string]: string } = {};
+    
+    if (element.animation && element.animation.type !== 'none') {
+      styles['animation-duration'] = `${element.animation.duration}s`;
+      styles['animation-delay'] = `${element.animation.delay}s`;
+      styles['animation-timing-function'] = element.animation.easing;
+    }
+    
+    return styles;
+  }
+
+  // Incrementa o key para resetar animações ao trocar slide
+  private resetAnimations(): void {
+    this.animationKey++;
   }
 }

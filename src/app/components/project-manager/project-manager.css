@@ -683,6 +683,24 @@
   cursor: not-allowed;
 }
 
+.btn-action {
+  padding: 10px 24px;
+  background: #3498db;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-action:hover {
+  background: #2980b9;
+}
+
 .btn-delete {
   padding: 10px 24px;
   background: #c0392b;

@@ -51,6 +51,11 @@ export class ProjectManager implements OnInit {
   // Projeto selecionado para deletar
   projectToDelete: { id: string; name: string; source: 'cloud' | 'local' } | null = null;
   
+  // Projeto selecionado para renomear
+  showRenameDialog = signal(false);
+  projectToRename: { id: string; name: string; source: 'cloud' | 'local' } | null = null;
+  renameNewName = '';
+  
   // Estado de exportação PDF
   isExportingPdf = false;
   
@@ -406,6 +411,66 @@ export class ProjectManager implements OnInit {
     } finally {
       this.projectToDelete = null;
       this.showDeleteConfirm.set(false);
+      this.isLoading.set(false);
+    }
+  }
+  
+  // ==================== RENOMEAR PROJETO ====================
+  
+  openRenameDialog(id: string, name: string, source: 'cloud' | 'local') {
+    this.projectToRename = { id, name, source };
+    this.renameNewName = name;
+    this.showRenameDialog.set(true);
+  }
+  
+  async renameProject() {
+    if (!this.projectToRename || !this.renameNewName.trim()) return;
+    
+    this.isLoading.set(true);
+    
+    try {
+      if (this.projectToRename.source === 'cloud') {
+        await this.supabase.updateProject(this.projectToRename.id, {
+          name: this.renameNewName.trim()
+        });
+      } else {
+        await this.projectStorage.renameProject(this.projectToRename.id, this.renameNewName.trim());
+      }
+      
+      await this.loadProjects();
+    } catch (error) {
+      console.error('Erro ao renomear projeto:', error);
+    } finally {
+      this.projectToRename = null;
+      this.showRenameDialog.set(false);
+      this.isLoading.set(false);
+    }
+  }
+  
+  // ==================== DUPLICAR PROJETO ====================
+  
+  async duplicateProject(id: string, name: string, source: 'cloud' | 'local') {
+    this.isLoading.set(true);
+    
+    try {
+      const newName = `${name} (cópia)`;
+      
+      if (source === 'cloud') {
+        // Buscar projeto original
+        const original = await this.supabase.getProject(id);
+        if (original) {
+          // Criar novo projeto com os mesmos dados
+          await this.supabase.createProject(newName, original.slides, original.thumbnail || undefined);
+        }
+      } else {
+        // Duplicar projeto local
+        await this.projectStorage.duplicateProject(id, newName);
+      }
+      
+      await this.loadProjects();
+    } catch (error) {
+      console.error('Erro ao duplicar projeto:', error);
+    } finally {
       this.isLoading.set(false);
     }
   }

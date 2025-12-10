@@ -61,16 +61,12 @@
 }
 
 .presentation-text {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: block;
   overflow: visible;
-  word-wrap: break-word;
 }
 
-.presentation-text span {
-  display: block;
-  white-space: pre-wrap;
+.presentation-text > span {
+  display: inline;
 }
 
 /* Controls */
@@ -254,3 +250,151 @@
     font-size: 10px;
   }
 }
+
+/* ============== Animações de Texto Especiais ============== */
+
+/* Container de animação de texto */
+.text-animation-container {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: pre;
+}
+
+/* Letra por Letra */
+.animated-letter {
+  opacity: 0;
+  animation: letterFadeIn 0.1s forwards;
+}
+
+@keyframes letterFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Palavra por Palavra */
+.animated-word {
+  opacity: 0;
+  animation: wordFadeIn 0.3s forwards;
+}
+
+@keyframes wordFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Máquina de Escrever */
+.typewriter-container {
+  display: inline-block;
+  position: relative;
+}
+
+.typewriter-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: typewriter-typing 2s forwards;
+}
+
+@keyframes typewriter-typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: typewriter-blink 0.7s infinite;
+  font-weight: bold;
+}
+
+@keyframes typewriter-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* Highlight */
+.highlight-container {
+  display: inline-block;
+}
+
+.highlight-text {
+  display: inline-block;
+  background: linear-gradient(90deg, #ffeb3b 0%, #ffeb3b 100%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  background-position: left center;
+  animation: highlight-sweep 1s forwards;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+@keyframes highlight-sweep {
+  0% {
+    background-size: 0% 100%;
+  }
+  100% {
+    background-size: 100% 100%;
+  }
+}
+
+/* Glitch */
+.glitch-container {
+  display: inline-block;
+  position: relative;
+}
+
+.glitch-text {
+  display: inline-block;
+  position: relative;
+  animation: glitch-effect 0.5s infinite;
+}
+
+.glitch-text.animate-repeat {
+  animation-iteration-count: infinite;
+}
+
+.glitch-text:not(.animate-repeat) {
+  animation-iteration-count: 3;
+  animation-fill-mode: forwards;
+}
+
+@keyframes glitch-effect {
+  0%, 100% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+  20% {
+    transform: translate(-3px, 3px);
+    text-shadow: 3px 0 #ff00ff, -3px 0 #00ffff;
+  }
+  40% {
+    transform: translate(3px, -3px);
+    text-shadow: -3px 0 #ff00ff, 3px 0 #00ffff;
+  }
+  60% {
+    transform: translate(-2px, 2px);
+    text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff;
+  }
+  80% {
+    transform: translate(2px, -2px);
+    text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff;
+  }
+}
+

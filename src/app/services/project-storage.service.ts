@@ -217,6 +217,30 @@ export class ProjectStorageService {
     });
   }
   
+  // Renomear projeto
+  async renameProject(id: string, newName: string): Promise<boolean> {
+    const project = await this.loadProject(id);
+    if (!project) return false;
+    
+    project.name = newName;
+    project.updatedAt = new Date();
+    
+    return new Promise((resolve) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(project);
+      
+      request.onsuccess = () => {
+        this.loadProjectsList();
+        resolve(true);
+      };
+      
+      request.onerror = () => {
+        resolve(false);
+      };
+    });
+  }
+  
   // Duplicar projeto
   async duplicateProject(id: string, newName: string): Promise<SaveResult> {
     const original = await this.loadProject(id);

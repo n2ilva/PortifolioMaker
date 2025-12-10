@@ -34,15 +34,127 @@
         
         <div class="layouts-grid">
           @for (layout of slideService.layoutTemplates; track layout.id) {
-            <div 
-              class="layout-item"
-              [class.active]="slideService.currentSlide()?.layoutId === layout.id"
-              (click)="onApplyLayout(layout)"
-            >
-              <div class="layout-icon">{{ getLayoutIcon(layout) }}</div>
-              <span class="layout-name">{{ layout.name }}</span>
-            </div>
+            @if (layout.id !== 'layout-custom') {
+              <div 
+                class="layout-item"
+                [class.active]="slideService.currentSlide()?.layoutId === layout.id"
+                (click)="onApplyLayout(layout)"
+                [title]="layout.name"
+              >
+                <div class="layout-icon">{{ getLayoutIcon(layout) }}</div>
+              </div>
+            }
           }
+        </div>
+
+        <!-- Grade Personalizada inline -->
+        <div class="custom-grid-section">
+          <h4>Grade Personalizada</h4>
+          
+          <div class="custom-grid-controls">
+            <!-- Colunas e Linhas -->
+            <div class="grid-control-row">
+              <div class="grid-control-item">
+                <label>Colunas</label>
+                <div class="number-input-inline">
+                  <button 
+                    class="number-btn-small" 
+                    (click)="decreaseColumns()"
+                    [disabled]="customGridColumns <= 1"
+                  >−</button>
+                  <span class="number-value-small">{{ customGridColumns }}</span>
+                  <button 
+                    class="number-btn-small" 
+                    (click)="increaseColumns()"
+                    [disabled]="customGridColumns >= 6"
+                  >+</button>
+                </div>
+              </div>
+
+              <div class="grid-control-item">
+                <label>Linhas</label>
+                <div class="number-input-inline">
+                  <button 
+                    class="number-btn-small" 
+                    (click)="decreaseRows()"
+                    [disabled]="customGridRows <= 1"
+                  >−</button>
+                  <span class="number-value-small">{{ customGridRows }}</span>
+                  <button 
+                    class="number-btn-small" 
+                    (click)="increaseRows()"
+                    [disabled]="customGridRows >= 6"
+                  >+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Espaçamento -->
+            <div class="grid-slider-row">
+              <label>Espaçamento</label>
+              <div class="slider-with-value">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="10" 
+                  step="0.5"
+                  [(ngModel)]="customGridGap"
+                  class="grid-slider"
+                >
+                <span class="slider-value">{{ customGridGap }}%</span>
+              </div>
+            </div>
+
+            <!-- Margem Horizontal -->
+            <div class="grid-slider-row">
+              <label>Margem Horizontal</label>
+              <div class="slider-with-value">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="20" 
+                  step="1"
+                  [(ngModel)]="customGridMarginX"
+                  class="grid-slider"
+                >
+                <span class="slider-value">{{ customGridMarginX }}%</span>
+              </div>
+            </div>
+
+            <!-- Margem Vertical -->
+            <div class="grid-slider-row">
+              <label>Margem Vertical</label>
+              <div class="slider-with-value">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="20" 
+                  step="1"
+                  [(ngModel)]="customGridMarginY"
+                  class="grid-slider"
+                >
+                <span class="slider-value">{{ customGridMarginY }}%</span>
+              </div>
+            </div>
+
+            <!-- Pré-visualização 16:9 -->
+            <div class="grid-preview-wrapper">
+              <div class="grid-preview-inline">
+                <div class="grid-preview-content" [ngStyle]="getPreviewGridStyle()">
+                  @for (cell of getPreviewCells(); track $index) {
+                    <div class="grid-cell-preview"></div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <button 
+              class="btn-apply-custom-grid"
+              (click)="applyCustomGrid()"
+            >
+              Aplicar Grade {{ customGridColumns }}×{{ customGridRows }}
+            </button>
+          </div>
         </div>
       </div>
     }
@@ -478,6 +590,128 @@
               </div>
             }
           }
+
+          <!-- Seção de Animação -->
+          <div class="property-group">
+            <label>
+              <span class="material-icons" style="font-size: 16px; vertical-align: middle;">animation</span>
+              Animação
+            </label>
+            
+            <div class="animation-select">
+              <select 
+                [value]="getAnimationType()"
+                (change)="onAnimationTypeChange($event)"
+                class="select-animation"
+              >
+                <optgroup label="Básicas">
+                  <option value="none">Nenhuma</option>
+                  <option value="fadeIn">Aparecer (Fade In)</option>
+                  <option value="fadeInUp">Aparecer de baixo</option>
+                  <option value="fadeInDown">Aparecer de cima</option>
+                  <option value="fadeInLeft">Aparecer da esquerda</option>
+                  <option value="fadeInRight">Aparecer da direita</option>
+                </optgroup>
+                <optgroup label="Zoom">
+                  <option value="zoomIn">Zoom In</option>
+                  <option value="zoomOut">Zoom Out</option>
+                </optgroup>
+                <optgroup label="Deslizar">
+                  <option value="slideInUp">Deslizar de baixo</option>
+                  <option value="slideInDown">Deslizar de cima</option>
+                  <option value="slideInLeft">Deslizar da esquerda</option>
+                  <option value="slideInRight">Deslizar da direita</option>
+                </optgroup>
+                <optgroup label="Rotação">
+                  <option value="flipInX">Virar horizontal</option>
+                  <option value="flipInY">Virar vertical</option>
+                  <option value="rotateIn">Rotacionar</option>
+                </optgroup>
+                <optgroup label="Especiais">
+                  <option value="bounceIn">Quicar</option>
+                  <option value="pulse">Pulsar</option>
+                  <option value="shake">Tremer</option>
+                  <option value="swing">Balançar</option>
+                </optgroup>
+                @if (selectedElement.type === 'text') {
+                  <optgroup label="Texto">
+                    <option value="typewriter">Máquina de escrever</option>
+                    <option value="letterByLetter">Letra por letra</option>
+                    <option value="wordByWord">Palavra por palavra</option>
+                    <option value="highlight">Destacar</option>
+                    <option value="glitch">Glitch</option>
+                  </optgroup>
+                }
+              </select>
+            </div>
+
+            @if (getAnimationType() !== 'none') {
+              <div class="animation-controls">
+                <div class="animation-control-row">
+                  <label class="small-label">Duração</label>
+                  <div class="slider-row">
+                    <input 
+                      type="range" 
+                      min="0.1" 
+                      max="3" 
+                      step="0.1"
+                      [value]="getAnimationDuration()"
+                      (input)="onAnimationDurationChange($event)"
+                      class="animation-slider"
+                    >
+                    <span class="slider-value">{{ getAnimationDuration() }}s</span>
+                  </div>
+                </div>
+
+                <div class="animation-control-row">
+                  <label class="small-label">Atraso</label>
+                  <div class="slider-row">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="5" 
+                      step="0.1"
+                      [value]="getAnimationDelay()"
+                      (input)="onAnimationDelayChange($event)"
+                      class="animation-slider"
+                    >
+                    <span class="slider-value">{{ getAnimationDelay() }}s</span>
+                  </div>
+                </div>
+
+                <div class="animation-control-row">
+                  <label class="small-label">Suavização</label>
+                  <select 
+                    [value]="getAnimationEasing()"
+                    (change)="onAnimationEasingChange($event)"
+                    class="select-easing"
+                  >
+                    <option value="linear">Linear</option>
+                    <option value="ease">Suave</option>
+                    <option value="ease-in">Acelerar</option>
+                    <option value="ease-out">Desacelerar</option>
+                    <option value="ease-in-out">Suave ambos</option>
+                  </select>
+                </div>
+
+                <div class="animation-control-row">
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      [checked]="getAnimationRepeat()"
+                      (change)="onAnimationRepeatChange($event)"
+                    >
+                    Repetir animação
+                  </label>
+                </div>
+
+                <button class="btn-preview-animation" (click)="previewAnimation()">
+                  <span class="material-icons">play_arrow</span>
+                  Pré-visualizar
+                </button>
+              </div>
+            }
+          </div>
 
           <div class="property-group">
             <label>Posição</label>

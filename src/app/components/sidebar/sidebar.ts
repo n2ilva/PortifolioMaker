@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
 import { SlideService } from '../../services/slide.service';
-import { LayoutTemplate } from '../../models/slide.model';
+import { LayoutTemplate, AnimationType, ElementAnimation } from '../../models/slide.model';
 import { ImageElement, TextElement } from '../../models/slide.model';
 
 interface BackgroundTheme {
@@ -39,6 +39,13 @@ export class Sidebar {
   newImageDescription = '';
   newImagePreview = '';
   newImageData = '';
+  
+  // Grade personalizada (controles inline)
+  customGridColumns = 2;
+  customGridRows = 2;
+  customGridGap = 2; // espaçamento entre células em porcentagem
+  customGridMarginX = 2; // margem horizontal em porcentagem
+  customGridMarginY = 2; // margem vertical em porcentagem
   
   // Abas de seleção de cor
   textColorTab: 'palette' | 'custom' = 'palette';
@@ -216,6 +223,94 @@ export class Sidebar {
 
   onApplyLayout(layout: LayoutTemplate): void {
     this.slideService.applyLayout(layout.id);
+  }
+
+  applyCustomGrid(): void {
+    const guides = this.generateGridGuides(
+      this.customGridColumns, 
+      this.customGridRows, 
+      this.customGridGap,
+      this.customGridMarginX,
+      this.customGridMarginY
+    );
+    this.slideService.applyCustomLayout(guides);
+  }
+
+  generateGridGuides(
+    cols: number, 
+    rows: number, 
+    gap: number,
+    marginX: number = 2,
+    marginY: number = 2
+  ): { x: number; y: number; width: number; height: number; label: string }[] {
+    const guides: { x: number; y: number; width: number; height: number; label: string }[] = [];
+    
+    // Área disponível após margens
+    const totalWidth = 100 - (marginX * 2);
+    const totalHeight = 100 - (marginY * 2);
+    
+    // Calcular tamanho de cada célula
+    const cellWidth = (totalWidth - (gap * (cols - 1))) / cols;
+    const cellHeight = (totalHeight - (gap * (rows - 1))) / rows;
+    
+    let count = 1;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = marginX + (col * (cellWidth + gap));
+        const y = marginY + (row * (cellHeight + gap));
+        
+        guides.push({
+          x,
+          y,
+          width: cellWidth,
+          height: cellHeight,
+          label: `${count}`
+        });
+        count++;
+      }
+    }
+    
+    return guides;
+  }
+
+  // Preview da grade personalizada
+  getPreviewGridStyle(): { [key: string]: string } {
+    return {
+      'grid-template-columns': `repeat(${this.customGridColumns}, 1fr)`,
+      'grid-template-rows': `repeat(${this.customGridRows}, 1fr)`,
+      'gap': `${this.customGridGap}%`,
+      'padding': `${this.customGridMarginY}% ${this.customGridMarginX}%`
+    };
+  }
+
+  // Métodos para ajustar colunas e linhas
+  decreaseColumns(): void {
+    if (this.customGridColumns > 1) {
+      this.customGridColumns--;
+    }
+  }
+
+  increaseColumns(): void {
+    if (this.customGridColumns < 6) {
+      this.customGridColumns++;
+    }
+  }
+
+  decreaseRows(): void {
+    if (this.customGridRows > 1) {
+      this.customGridRows--;
+    }
+  }
+
+  increaseRows(): void {
+    if (this.customGridRows < 6) {
+      this.customGridRows++;
+    }
+  }
+
+  // Array para preview de células
+  getPreviewCells(): number[] {
+    return Array(this.customGridColumns * this.customGridRows).fill(0).map((_, i) => i + 1);
   }
 
   onBackgroundColorChange(event: Event): void {
@@ -496,12 +591,12 @@ export class Sidebar {
 
   getLayoutIcon(layout: LayoutTemplate): string {
     const icons: { [key: string]: string } = {
-      'layout-3-images-1-text': '▣▣▣',
-      'layout-2-images-1-text': '◧◨',
-      'layout-1-image-1-text': '◐◑',
+      'layout-3-images': '▣▣▣',
+      'layout-2-images': '◧◨',
+      'layout-1-image': '▣',
       'layout-4-images-grid': '▦',
-      'layout-text-only': '☰',
-      'layout-custom': '◇'
+      'layout-6-images-grid': '⬡',
+      'layout-custom': '⊞'
     };
     return icons[layout.id] || '▢';
   }
@@ -653,6 +748,105 @@ export class Sidebar {
     const element = this.selectedElement;
     if (element) {
       this.slideService.deleteElement(element.id);
+    }
+  }
+
+  // ============== Métodos de Animação ==============
+  
+  getAnimationType(): string {
+    const element = this.selectedElement;
+    return element?.animation?.type || 'none';
+  }
+
+  onAnimationTypeChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as AnimationType;
+    const element = this.selectedElement;
+    if (element) {
+      if (value === 'none') {
+        // Remover animação completamente
+        this.slideService.updateElement(element.id, { animation: undefined } as any);
+      } else {
+        // Criar ou atualizar animação
+        const newAnimation: ElementAnimation = {
+          type: value,
+          duration: element.animation?.duration ?? 0.5,
+          delay: element.animation?.delay ?? 0,
+          easing: element.animation?.easing ?? 'ease',
+          repeat: element.animation?.repeat ?? false
+        };
+        this.slideService.updateElement(element.id, { animation: newAnimation });
+      }
+    }
+  }
+
+  getAnimationDuration(): number {
+    const element = this.selectedElement;
+    return element?.animation?.duration || 0.5;
+  }
+
+  onAnimationDurationChange(event: Event): void {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, duration: value }
+      });
+    }
+  }
+
+  getAnimationDelay(): number {
+    const element = this.selectedElement;
+    return element?.animation?.delay || 0;
+  }
+
+  onAnimationDelayChange(event: Event): void {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, delay: value }
+      });
+    }
+  }
+
+  getAnimationEasing(): string {
+    const element = this.selectedElement;
+    return element?.animation?.easing || 'ease';
+  }
+
+  onAnimationEasingChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, easing: value }
+      });
+    }
+  }
+
+  getAnimationRepeat(): boolean {
+    const element = this.selectedElement;
+    return element?.animation?.repeat || false;
+  }
+
+  onAnimationRepeatChange(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, repeat: checked }
+      });
+    }
+  }
+
+  previewAnimation(): void {
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      // Dispara um evento customizado para preview de animação
+      const event = new CustomEvent('preview-animation', { 
+        detail: { elementId: element.id, animation: element.animation }
+      });
+      document.dispatchEvent(event);
     }
   }
 }

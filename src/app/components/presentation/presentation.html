@@ -1,6 +1,6 @@
 <div class="presentation-overlay" *ngIf="isOpen" (click)="nextSlide()">
   <!-- Slide Content -->
-  <div class="presentation-slide" *ngIf="currentSlide">
+  <div class="presentation-slide" *ngIf="currentSlide" [attr.data-animation-key]="getAnimationKey()">
     <!-- Background Color -->
     <div 
       class="slide-background" 
@@ -12,9 +12,12 @@
       <!-- Image Element -->
       <div 
         *ngIf="isImage(element)" 
-        class="presentation-element"
+        class="presentation-element {{ getAnimationClasses(element) }}"
         [class.background-element]="element.metadata?.['backgroundDecor']"
         [ngStyle]="getElementStyle(element)"
+        [style.animation-duration]="element.animation?.type !== 'none' ? element.animation?.duration + 's' : null"
+        [style.animation-delay]="element.animation?.type !== 'none' ? element.animation?.delay + 's' : null"
+        [style.animation-timing-function]="element.animation?.type !== 'none' ? element.animation?.easing : null"
       >
         <img [src]="element.src" [alt]="element.alt" [title]="element.alt || 'Imagem'" [ngStyle]="getImageStyle(element)">
       </div>
@@ -22,10 +25,71 @@
       <!-- Text Element -->
       <div 
         *ngIf="isText(element)" 
-        class="presentation-element presentation-text"
+        class="presentation-element presentation-text {{ getAnimationClasses(element) }}"
         [ngStyle]="getElementStyle(element)"
+        [style.animation-duration]="element.animation?.type !== 'none' && !isTextAnimation(element) ? element.animation?.duration + 's' : null"
+        [style.animation-delay]="element.animation?.type !== 'none' && !isTextAnimation(element) ? element.animation?.delay + 's' : null"
+        [style.animation-timing-function]="element.animation?.type !== 'none' && !isTextAnimation(element) ? element.animation?.easing : null"
       >
-        <span [ngStyle]="getTextStyle(element)">{{ element.content }}</span>
+        <!-- Animação: Letra por Letra -->
+        <span *ngIf="element.animation?.type === 'letterByLetter'" [ngStyle]="getTextStyle(element)" class="text-animation-container">
+          <span 
+            *ngFor="let letter of getLetters(element.content); let i = index"
+            class="animated-letter"
+            [style.animation-delay]="getCharDelay(i, element)"
+            [style.animation-timing-function]="element.animation?.easing"
+          >{{ letter === ' ' ? '\u00A0' : letter }}</span>
+        </span>
+
+        <!-- Animação: Palavra por Palavra -->
+        <span *ngIf="element.animation?.type === 'wordByWord'" [ngStyle]="getTextStyle(element)" class="text-animation-container">
+          <span 
+            *ngFor="let word of getWords(element.content); let i = index; let last = last"
+            class="animated-word"
+            [style.animation-delay]="getWordDelay(i, element)"
+            [style.animation-timing-function]="element.animation?.easing"
+          >{{ word }}{{ !last ? '\u00A0' : '' }}</span>
+        </span>
+
+        <!-- Animação: Máquina de Escrever -->
+        <span *ngIf="element.animation?.type === 'typewriter'" [ngStyle]="getTextStyle(element)" class="typewriter-container">
+          <span 
+            class="typewriter-text"
+            [style.animation-duration]="element.animation?.duration + 's'"
+            [style.animation-delay]="element.animation?.delay + 's'"
+            [style.animation-timing-function]="'steps(' + element.content.length + ', end)'"
+          >{{ element.content }}</span>
+          <span 
+            class="typewriter-cursor"
+            [style.animation-delay]="element.animation?.delay + 's'"
+          >|</span>
+        </span>
+
+        <!-- Animação: Highlight -->
+        <span *ngIf="element.animation?.type === 'highlight'" [ngStyle]="getTextStyle(element)" class="highlight-container">
+          <span 
+            class="highlight-text"
+            [style.animation-duration]="element.animation?.duration + 's'"
+            [style.animation-delay]="element.animation?.delay + 's'"
+            [style.animation-timing-function]="element.animation?.easing"
+          >{{ element.content }}</span>
+        </span>
+
+        <!-- Animação: Glitch -->
+        <span *ngIf="element.animation?.type === 'glitch'" [ngStyle]="getTextStyle(element)" class="glitch-container" [attr.data-text]="element.content">
+          <span 
+            class="glitch-text"
+            [style.animation-duration]="element.animation?.duration + 's'"
+            [style.animation-delay]="element.animation?.delay + 's'"
+            [class.animate-repeat]="element.animation?.repeat"
+          >{{ element.content }}</span>
+        </span>
+
+        <!-- Texto Normal (sem animação especial de texto) -->
+        <span 
+          *ngIf="!element.animation || element.animation.type === 'none' || !isTextAnimation(element)" 
+          [ngStyle]="getTextStyle(element)"
+        >{{ element.content }}</span>
       </div>
     </ng-container>
   </div>

@@ -93,6 +93,17 @@
     >
       <span class="material-icons-round">{{ slideService.showGridGuides() ? 'grid_view' : 'grid_off' }}</span> Grade
     </button>
+
+    <div class="separator"></div>
+
+    <button 
+      class="btn btn-undo"
+      (click)="undo()"
+      [disabled]="!slideService.canUndo()"
+      title="Desfazer última alteração (Ctrl+Z)"
+    >
+      <span class="material-icons-round">undo</span> Desfazer
+    </button>
   </div>
   
   <div class="toolbar-right desktop-only">

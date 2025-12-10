@@ -281,6 +281,24 @@
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
 }
 
+/* Botão Desfazer */
+.btn-undo {
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.2) 100%);
+  border-color: rgba(156, 163, 175, 0.4);
+}
+
+.btn-undo:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.3) 0%, rgba(107, 114, 128, 0.3) 100%);
+  border-color: rgba(156, 163, 175, 0.6);
+}
+
+.btn-undo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Google User Info */
 .google-user-info {
   display: flex;

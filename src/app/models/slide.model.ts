@@ -26,6 +26,43 @@ export interface ElementShadow {
   color: string;
 }
 
+// Tipos de animação disponíveis
+export type AnimationType = 
+  | 'none'
+  | 'fadeIn'
+  | 'fadeInUp'
+  | 'fadeInDown'
+  | 'fadeInLeft'
+  | 'fadeInRight'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'bounceIn'
+  | 'slideInUp'
+  | 'slideInDown'
+  | 'slideInLeft'
+  | 'slideInRight'
+  | 'flipInX'
+  | 'flipInY'
+  | 'rotateIn'
+  | 'pulse'
+  | 'shake'
+  | 'swing'
+  // Animações específicas para texto
+  | 'typewriter'
+  | 'letterByLetter'
+  | 'wordByWord'
+  | 'highlight'
+  | 'glitch';
+
+// Configuração de animação do elemento
+export interface ElementAnimation {
+  type: AnimationType;
+  duration: number;      // duração em segundos
+  delay: number;         // atraso em segundos
+  easing: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
+  repeat: boolean;       // repetir animação
+}
+
 // Elemento base
 export interface SlideElement {
   id: string;
@@ -36,6 +73,7 @@ export interface SlideElement {
   shadow?: ElementShadow;
   opacity?: number;
   rotation?: number;
+  animation?: ElementAnimation;
   metadata?: { [key: string]: any };
 }
 
@@ -100,6 +138,7 @@ export interface Slide {
   id: string;
   name: string;
   layoutId?: string;
+  customGridGuides?: LayoutGridGuide[]; // Guias personalizadas para layout custom
   elements: (ImageElement | TextElement)[];
   backgroundColor: string;
   createdAt: Date;

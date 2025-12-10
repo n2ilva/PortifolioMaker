@@ -1,8 +1,8 @@
-import { Component, inject, ElementRef, ViewChild, HostListener } from '@angular/core';
+import { Component, inject, ElementRef, ViewChild, HostListener, OnInit, OnDestroy, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
-import { ImageElement, TextElement, ElementBorderStyle, LayoutGridGuide } from '../../models/slide.model';
+import { ImageElement, TextElement, ElementBorderStyle, LayoutGridGuide, AnimationType } from '../../models/slide.model';
 
 // Proporções padrão do mercado fotográfico
 interface AspectRatioInfo {
@@ -32,8 +32,9 @@ const STANDARD_ASPECT_RATIOS: AspectRatioInfo[] = [
   templateUrl: './slide-canvas.html',
   styleUrl: './slide-canvas.css'
 })
-export class SlideCanvas {
+export class SlideCanvas implements OnInit, OnDestroy {
   slideService = inject(SlideService);
+  private cdr = inject(ChangeDetectorRef);
   
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
   
@@ -461,16 +462,17 @@ export class SlideCanvas {
     const styles: { [key: string]: string } = {
       left: `${element.position.x}%`,
       top: `${element.position.y}%`,
-      width: `${element.position.width}%`,
       'z-index': `${element.zIndex}`
     };
 
-    // Texto tem altura automática, imagem tem altura fixa
+    // Texto tem tamanho automático baseado no conteúdo, imagem tem dimensões fixas
     if (isTextElement) {
+      styles['width'] = 'auto';
       styles['height'] = 'auto';
-      styles['min-height'] = '30px';
       styles['max-width'] = `calc(100% - ${element.position.x}%)`; // Não ultrapassar o slide
+      styles['white-space'] = 'nowrap'; // Texto em uma linha para tamanho exato
     } else {
+      styles['width'] = `${element.position.width}%`;
       styles['height'] = `${element.position.height}%`;
     }
 
@@ -559,8 +561,87 @@ export class SlideCanvas {
 
   // Obter guias de grade do layout atual
   getLayoutGridGuides(layoutId?: string): LayoutGridGuide[] {
+    // Para layout personalizado, verificar guias salvas no slide ou temporárias
+    if (layoutId === 'layout-custom') {
+      const currentSlide = this.slideService.currentSlide();
+      if (currentSlide?.customGridGuides && currentSlide.customGridGuides.length > 0) {
+        return currentSlide.customGridGuides;
+      }
+      const customGuides = this.slideService.currentGridGuides();
+      if (customGuides && customGuides.length > 0) {
+        return customGuides;
+      }
+    }
+    
     if (!layoutId) return [];
     const layout = this.slideService.layoutTemplates.find(l => l.id === layoutId);
     return layout?.gridGuides || [];
+  }
+
+  // ============== Animações ==============
+  
+  // Elemento atualmente em preview de animação
+  previewAnimationElementId: string | null = null;
+
+  private previewAnimationHandler = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const { elementId, animation } = customEvent.detail;
+    
+    // Resetar primeiro para garantir que a animação reinicie
+    this.previewAnimationElementId = null;
+    this.cdr.detectChanges();
+    
+    // Aplicar a animação após um pequeno delay
+    setTimeout(() => {
+      this.previewAnimationElementId = elementId;
+      this.cdr.detectChanges();
+      
+      // Remover a classe após a animação terminar
+      const duration = (animation.duration + animation.delay) * 1000 + 100;
+      setTimeout(() => {
+        this.previewAnimationElementId = null;
+        this.cdr.detectChanges();
+      }, duration);
+    }, 50);
+  };
+
+  ngOnInit(): void {
+    // Escutar eventos de preview de animação
+    document.addEventListener('preview-animation', this.previewAnimationHandler);
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('preview-animation', this.previewAnimationHandler);
+  }
+
+  // Gerar classes de animação para um elemento
+  getAnimationClasses(element: ImageElement | TextElement): string {
+    const classes: string[] = [];
+    
+    if (element.animation && element.animation.type !== 'none') {
+      // Se está em preview ou modo de animação
+      if (this.previewAnimationElementId === element.id) {
+        classes.push('element-animated');
+        classes.push(`animate-${element.animation.type}`);
+        if (element.animation.repeat) {
+          classes.push('animate-repeat');
+        }
+      }
+    }
+    
+    return classes.join(' ');
+  }
+
+  // Gerar estilos de animação para um elemento
+  getAnimationStyle(element: ImageElement | TextElement): { [key: string]: string } {
+    const styles: { [key: string]: string } = {};
+    
+    if (element.animation && element.animation.type !== 'none' && this.previewAnimationElementId === element.id) {
+      styles['animation-duration'] = `${element.animation.duration}s`;
+      styles['animation-delay'] = `${element.animation.delay}s`;
+      styles['animation-timing-function'] = element.animation.easing;
+    }
+    
+    return styles;
   }
 }

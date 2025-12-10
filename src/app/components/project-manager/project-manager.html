@@ -146,6 +146,12 @@
                     <span class="project-slides">{{ project.slides.length }} slides</span>
                   </div>
                   <div class="project-actions">
+                    <button class="btn-action" (click)="openRenameDialog(project.id, project.name, 'cloud'); $event.stopPropagation()" title="Renomear">
+                      <span class="material-icons">edit</span>
+                    </button>
+                    <button class="btn-action" (click)="duplicateProject(project.id, project.name, 'cloud'); $event.stopPropagation()" title="Duplicar">
+                      <span class="material-icons">content_copy</span>
+                    </button>
                     <button class="btn-delete" (click)="confirmDelete(project.id, project.name, 'cloud'); $event.stopPropagation()" title="Excluir">
                       <span class="material-icons">delete</span>
                     </button>
@@ -184,6 +190,12 @@
                     <span class="project-slides">{{ project.slidesCount }} slides</span>
                   </div>
                   <div class="project-actions">
+                    <button class="btn-action" (click)="openRenameDialog(project.id, project.name, 'local'); $event.stopPropagation()" title="Renomear">
+                      <span class="material-icons">edit</span>
+                    </button>
+                    <button class="btn-action" (click)="duplicateProject(project.id, project.name, 'local'); $event.stopPropagation()" title="Duplicar">
+                      <span class="material-icons">content_copy</span>
+                    </button>
                     <button class="btn-export" (click)="exportProject(project); $event.stopPropagation()" title="Exportar">
                       <span class="material-icons">download</span>
                     </button>
@@ -285,6 +297,34 @@
         <button class="btn-cancel" (click)="showDeleteConfirm.set(false)">Cancelar</button>
         <button class="btn-danger" (click)="deleteProject()">
           <span class="material-icons">delete</span> Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Renomear Projeto -->
+@if (showRenameDialog()) {
+  <div class="dialog-overlay" (click)="showRenameDialog.set(false)">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <h3><span class="material-icons">edit</span> Renomear Projeto</h3>
+      
+      <div class="form-group">
+        <label for="rename-input">Novo nome:</label>
+        <input 
+          type="text" 
+          id="rename-input"
+          [(ngModel)]="renameNewName" 
+          placeholder="Nome do projeto"
+          (keyup.enter)="renameProject()"
+          autofocus
+        >
+      </div>
+      
+      <div class="dialog-actions">
+        <button class="btn-cancel" (click)="showRenameDialog.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="renameProject()" [disabled]="!renameNewName.trim()">
+          <span class="material-icons">check</span> Renomear
         </button>
       </div>
     </div>
