@@ -1278,6 +1278,85 @@ export class SlideService {
     this.selectedElementIdSignal.set(null);
   }
 
+  // Duplicar elemento
+  duplicateElement(elementId: string): void {
+    const slide = this.currentSlide();
+    if (!slide) return;
+
+    const element = slide.elements.find(e => e.id === elementId);
+    if (!element) return;
+
+    // Criar cópia do elemento com novo ID e posição ligeiramente deslocada
+    const newElement = {
+      ...JSON.parse(JSON.stringify(element)),
+      id: crypto.randomUUID(),
+      position: {
+        ...element.position,
+        x: Math.min(element.position.x + 2, 100 - element.position.width),
+        y: Math.min(element.position.y + 2, 100 - element.position.height)
+      },
+      zIndex: Math.max(...slide.elements.map(e => e.zIndex)) + 1
+    };
+
+    this.slidesSignal.update(slides =>
+      slides.map(s => {
+        if (s.id !== slide.id) return s;
+        return {
+          ...s,
+          elements: [...s.elements, newElement],
+          updatedAt: new Date()
+        };
+      })
+    );
+
+    // Selecionar o novo elemento
+    this.selectedElementIdSignal.set(newElement.id);
+  }
+
+  // Mover elemento com as setas do teclado
+  moveElement(elementId: string, direction: 'up' | 'down' | 'left' | 'right', amount: number = 1): void {
+    this.slidesSignal.update(slides =>
+      slides.map(slide => {
+        if (slide.id !== this.currentSlideIdSignal()) return slide;
+        
+        return {
+          ...slide,
+          elements: slide.elements.map(el => {
+            if (el.id !== elementId) return el;
+            
+            let newX = el.position.x;
+            let newY = el.position.y;
+            
+            switch (direction) {
+              case 'up':
+                newY = Math.max(0, el.position.y - amount);
+                break;
+              case 'down':
+                newY = Math.min(100 - el.position.height, el.position.y + amount);
+                break;
+              case 'left':
+                newX = Math.max(0, el.position.x - amount);
+                break;
+              case 'right':
+                newX = Math.min(100 - el.position.width, el.position.x + amount);
+                break;
+            }
+            
+            return {
+              ...el,
+              position: {
+                ...el.position,
+                x: newX,
+                y: newY
+              }
+            };
+          }),
+          updatedAt: new Date()
+        };
+      })
+    );
+  }
+
   // Zoom
   setZoom(zoom: number): void {
     this.zoomSignal.set(Math.max(25, Math.min(200, zoom)));

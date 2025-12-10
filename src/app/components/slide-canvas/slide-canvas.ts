@@ -65,8 +65,15 @@ export class SlideCanvas {
   // Proporção atual detectada
   currentAspectRatio: AspectRatioInfo | null = null;
 
-  onElementClick(event: Event, element: ImageElement | TextElement): void {
+  onElementClick(event: MouseEvent, element: ImageElement | TextElement): void {
     event.stopPropagation();
+    
+    // Ctrl+clique para duplicar o elemento
+    if (event.ctrlKey || event.metaKey) {
+      this.slideService.duplicateElement(element.id);
+      return;
+    }
+    
     this.slideService.selectElement(element.id);
   }
 
@@ -389,6 +396,63 @@ export class SlideCanvas {
     this.isResizing = false;
     this.resizeHandle = '';
     this.slideService.clearAlignmentGuides();
+  }
+
+  // Controles de teclado
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    const selectedId = this.slideService.selectedElementId();
+    
+    // Não processar se estiver editando texto
+    if (this.editingTextId) return;
+    
+    // Não processar se o foco estiver em um input ou textarea
+    const activeElement = document.activeElement;
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.getAttribute('contenteditable') === 'true')) {
+      return;
+    }
+    
+    if (!selectedId) return;
+    
+    // Quantidade de movimento (Shift para movimento maior)
+    const moveAmount = event.shiftKey ? 5 : 1;
+    
+    switch (event.key) {
+      case 'Delete':
+      case 'Backspace':
+        event.preventDefault();
+        this.slideService.deleteElement(selectedId);
+        break;
+        
+      case 'ArrowUp':
+        event.preventDefault();
+        this.slideService.moveElement(selectedId, 'up', moveAmount);
+        break;
+        
+      case 'ArrowDown':
+        event.preventDefault();
+        this.slideService.moveElement(selectedId, 'down', moveAmount);
+        break;
+        
+      case 'ArrowLeft':
+        event.preventDefault();
+        this.slideService.moveElement(selectedId, 'left', moveAmount);
+        break;
+        
+      case 'ArrowRight':
+        event.preventDefault();
+        this.slideService.moveElement(selectedId, 'right', moveAmount);
+        break;
+        
+      case 'd':
+      case 'D':
+        // Ctrl+D para duplicar
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          this.slideService.duplicateElement(selectedId);
+        }
+        break;
+    }
   }
 
   getElementStyle(element: ImageElement | TextElement): { [key: string]: string } {

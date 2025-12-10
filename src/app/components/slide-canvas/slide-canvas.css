@@ -14,23 +14,30 @@
   justify-content: center;
   padding: 24px;
   background: #1a1a1a;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0; /* Importante para flex shrink funcionar */
+  container-type: size;
+  container-name: canvas-container;
 }
 
 .canvas-wrapper {
   transform-origin: center center;
   transition: transform 0.2s ease;
   overflow: visible;
-  /* Dimensões fixas para manter proporção 16:9 */
-  width: 960px;
-  height: 540px;
+  /* Dimensões responsivas mantendo proporção 16:9 */
+  --base-width: min(100cqw - 48px, (100cqh - 48px) * 16 / 9);
+  --base-height: calc(var(--base-width) * 9 / 16);
+  width: var(--base-width);
+  height: var(--base-height);
+  max-width: 960px;
+  max-height: 540px;
   flex-shrink: 0;
 }
 
 .canvas {
-  width: 960px;
-  height: 540px; /* 16:9 - proporção fixa */
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
   background: white;
   position: relative;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);

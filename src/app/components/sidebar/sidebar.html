@@ -245,24 +245,6 @@
           <!-- Propriedades de Imagem -->
           @if (isImageElement(selectedElement)) {
             <div class="property-group">
-              <label>Ajuste da Imagem</label>
-              <div class="button-group">
-                <button 
-                  [class.active]="$any(selectedElement).fit === 'cover'"
-                  (click)="onImageFitChange('cover')"
-                >Preencher</button>
-                <button 
-                  [class.active]="$any(selectedElement).fit === 'contain'"
-                  (click)="onImageFitChange('contain')"
-                >Conter</button>
-                <button 
-                  [class.active]="$any(selectedElement).fit === 'fill'"
-                  (click)="onImageFitChange('fill')"
-                >Esticar</button>
-              </div>
-            </div>
-
-            <div class="property-group">
               <label>Proporção da Foto</label>
               <div class="aspect-ratio-grid">
                 @for (ratio of aspectRatios; track ratio.name) {
