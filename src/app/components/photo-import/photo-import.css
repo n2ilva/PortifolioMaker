@@ -1189,11 +1189,26 @@
   text-overflow: ellipsis;
 }
 
-.no-albums {
-  color: #666;
+.no-albums-message {
+  grid-column: 1 / -1;
   text-align: center;
   padding: 24px;
-  grid-column: 1 / -1;
+}
+
+.no-albums {
+  color: #94a3b8;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.no-albums-hint {
+  color: #64748b;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.no-albums-hint strong {
+  color: #38bdf8;
 }
 
 /* Google Selection Bar */

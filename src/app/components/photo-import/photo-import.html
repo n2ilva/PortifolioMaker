@@ -110,7 +110,11 @@
                   </div>
                 }
                 @if (googlePhotos.albums().length === 0) {
-                  <p class="no-albums">Nenhum álbum encontrado</p>
+                  <div class="no-albums-message">
+                    <p class="no-albums">Nenhum álbum encontrado</p>
+                    <p class="no-albums-hint">A API do Google Photos só mostra álbuns criados manualmente.</p>
+                    <p class="no-albums-hint">Use o botão <strong>"📷 Todas as Fotos"</strong> acima para ver suas fotos.</p>
+                  </div>
                 }
               </div>
             }
