@@ -109,7 +109,8 @@ export class SupabaseService {
       const { error } = await this.supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin,
+          scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly'
         }
       });
 
@@ -118,6 +119,18 @@ export class SupabaseService {
       this.errorSignal.set(error.message || 'Erro ao fazer login com Google');
       this.loadingSignal.set(false);
       throw error;
+    }
+  }
+  
+  /**
+   * Retorna o token de acesso do provedor Google (para uso com Google Drive)
+   */
+  async getGoogleAccessToken(): Promise<string | null> {
+    try {
+      const { data: { session } } = await this.supabase.auth.getSession();
+      return session?.provider_token ?? null;
+    } catch {
+      return null;
     }
   }
 
@@ -262,17 +275,27 @@ export class SupabaseService {
   }
 
   async getProject(projectId: string): Promise<SupabaseProject | null> {
+    const user = this.userSignal();
+    if (!user) return null;
+    
+    // Validar formato do ID
+    if (!projectId || typeof projectId !== 'string') return null;
+    
     try {
       const { data, error } = await this.supabase
         .from('projects')
         .select('*')
         .eq('id', projectId)
+        .eq('user_id', user.id) // Garantir que o projeto pertence ao usuário
         .single();
 
       if (error) throw error;
       return data;
     } catch (error: any) {
-      console.error('Erro ao buscar projeto:', error);
+      // Não expor detalhes do erro
+      if (!environment.production) {
+        console.error('Erro ao buscar projeto:', error);
+      }
       return null;
     }
   }
@@ -306,33 +329,62 @@ export class SupabaseService {
   }
 
   async updateProject(projectId: string, updates: Partial<Pick<SupabaseProject, 'name' | 'slides' | 'thumbnail'>>): Promise<boolean> {
+    const user = this.userSignal();
+    if (!user) {
+      this.errorSignal.set('Usuário não autenticado');
+      return false;
+    }
+    
+    // Validar formato do ID
+    if (!projectId || typeof projectId !== 'string') return false;
+    
+    // Sanitizar nome se presente
+    if (updates.name) {
+      updates.name = this.security.sanitize(updates.name);
+    }
+    
     try {
       const { error } = await this.supabase
         .from('projects')
         .update(updates)
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .eq('user_id', user.id); // Garantir que o projeto pertence ao usuário
 
       if (error) throw error;
       return true;
     } catch (error: any) {
-      console.error('Erro ao atualizar projeto:', error);
-      this.errorSignal.set(error.message);
+      if (!environment.production) {
+        console.error('Erro ao atualizar projeto:', error);
+      }
+      this.errorSignal.set('Erro ao atualizar projeto');
       return false;
     }
   }
 
   async deleteProject(projectId: string): Promise<boolean> {
+    const user = this.userSignal();
+    if (!user) {
+      this.errorSignal.set('Usuário não autenticado');
+      return false;
+    }
+    
+    // Validar formato do ID
+    if (!projectId || typeof projectId !== 'string') return false;
+    
     try {
       const { error } = await this.supabase
         .from('projects')
         .delete()
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .eq('user_id', user.id); // Garantir que o projeto pertence ao usuário
 
       if (error) throw error;
       return true;
     } catch (error: any) {
-      console.error('Erro ao deletar projeto:', error);
-      this.errorSignal.set(error.message);
+      if (!environment.production) {
+        console.error('Erro ao deletar projeto:', error);
+      }
+      this.errorSignal.set('Erro ao deletar projeto');
       return false;
     }
   }

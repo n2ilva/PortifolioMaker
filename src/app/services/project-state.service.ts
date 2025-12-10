@@ -2,6 +2,7 @@ import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { SlideService } from './slide.service';
 import { ProjectStorageService } from './project-storage.service';
 import { SupabaseService } from './supabase.service';
+import { environment } from '../../environments/environment';
 
 export interface CurrentProjectInfo {
   id: string | null;
@@ -82,7 +83,9 @@ export class ProjectStateService {
   private async autoSave() {
     if (!this.isProjectSaved()) return;
     
-    console.log('Auto-salvando projeto...');
+    if (!environment.production) {
+      console.log('Auto-salvando projeto...');
+    }
     
     const slides = this.slideService.slides();
     const currentSlideId = this.slideService.currentSlideId();
@@ -110,7 +113,9 @@ export class ProjectStateService {
     // Atualizar hash e marcar como salvo
     this.lastSavedHashSignal.set(this.computeHash(slides));
     this.hasUnsavedChangesSignal.set(false);
-    console.log('Projeto salvo automaticamente!');
+    if (!environment.production) {
+      console.log('Projeto salvo automaticamente!');
+    }
   }
   
   // Definir projeto atual após carregar

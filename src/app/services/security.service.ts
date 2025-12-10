@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 /**
  * Serviço de Segurança para proteger dados sensíveis do usuário
@@ -306,6 +307,26 @@ export class SecurityService {
   maskSensitiveData(data: string, visibleChars: number = 4): string {
     if (!data || data.length <= visibleChars * 2) return '****';
     return data.substring(0, visibleChars) + '****' + data.substring(data.length - visibleChars);
+  }
+
+  /**
+   * Log seguro - só exibe em ambiente de desenvolvimento
+   */
+  secureLog(message: string, ...data: any[]): void {
+    if (!environment.production) {
+      console.log(message, ...data);
+    }
+  }
+
+  /**
+   * Log de erro seguro - exibe apenas mensagem genérica em produção
+   */
+  secureError(message: string, error: any): void {
+    if (!environment.production) {
+      console.error(message, error);
+    } else {
+      console.error('Ocorreu um erro. Por favor, tente novamente.');
+    }
   }
 
   /**

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService, GooglePhoto, GoogleAlbum } from '../../services/google-photos.service';
 import { LayoutTemplate } from '../../models/slide.model';
+import { environment } from '../../../environments/environment';
 
 export interface PhotoFile {
   file: File | null;
@@ -508,15 +509,32 @@ export class PhotoImportComponent {
 
   // ========== Google Photos Methods ==========
 
-  toggleGooglePhotos(): void {
+  async toggleGooglePhotos(): Promise<void> {
     this.showGooglePhotos = !this.showGooglePhotos;
-    if (this.showGooglePhotos && this.googlePhotos.isAuthenticated()) {
-      this.googlePhotos.fetchAlbums();
+    
+    if (this.showGooglePhotos) {
+      // Tentar sincronizar com o Supabase primeiro (se logado com Google no Supabase)
+      if (!this.googlePhotos.isAuthenticated()) {
+        const synced = await this.googlePhotos.syncWithSupabase();
+        if (synced && !environment.production) {
+          console.log('Google Drive: Sincronizado automaticamente com Supabase');
+        }
+      }
+      
+      if (this.googlePhotos.isAuthenticated()) {
+        this.googlePhotos.fetchAlbums();
+      }
     }
   }
 
   async onGoogleLogin(): Promise<void> {
-    await this.googlePhotos.login();
+    // Primeiro tentar sincronizar com Supabase
+    const synced = await this.googlePhotos.syncWithSupabase();
+    
+    if (!synced) {
+      // Se não conseguiu sincronizar, fazer login direto
+      await this.googlePhotos.login();
+    }
     
     setTimeout(() => {
       if (this.googlePhotos.isAuthenticated()) {

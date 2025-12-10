@@ -1,5 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { SecurityService } from './security.service';
+import { SupabaseService } from './supabase.service';
+import { environment } from '../../environments/environment';
 
 declare const google: any;
 declare const gapi: any;
@@ -55,11 +57,61 @@ export class GooglePhotosService {
   
   // Serviço de segurança
   private security = inject(SecurityService);
+  private supabaseService = inject(SupabaseService);
+  
+  /**
+   * Log seguro - só exibe em desenvolvimento
+   */
+  private secureLog(message: string, ...data: any[]): void {
+    if (!environment.production) {
+      console.log(message, ...data);
+    }
+  }
   
   constructor() {
     this.loadFromStorageSecure();
     this.loadGoogleApi();
     this.loadGooglePicker();
+    
+    // Verificar se há token do Supabase Google disponível
+    this.trySupabaseGoogleToken();
+  }
+  
+  /**
+   * Tenta usar o token do Google do Supabase se disponível
+   */
+  private async trySupabaseGoogleToken(): Promise<void> {
+    // Aguardar o Supabase carregar
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (this.supabaseService.isAuthenticated() && !this.isAuthenticated()) {
+      const googleToken = await this.supabaseService.getGoogleAccessToken();
+      if (googleToken) {
+        this.secureLog('Google Drive: Usando token do Supabase');
+        this.accessToken = googleToken;
+        this.isAuthenticated.set(true);
+        await this.fetchUserInfo();
+        await this.saveToStorageSecure();
+      }
+    }
+  }
+  
+  /**
+   * Sincroniza com o token do Supabase (chamado externamente quando necessário)
+   */
+  async syncWithSupabase(): Promise<boolean> {
+    if (this.supabaseService.isAuthenticated()) {
+      const googleToken = await this.supabaseService.getGoogleAccessToken();
+      if (googleToken) {
+        this.secureLog('Google Drive: Sincronizando com token do Supabase');
+        this.accessToken = googleToken;
+        this.isAuthenticated.set(true);
+        await this.fetchUserInfo();
+        await this.saveToStorageSecure();
+        return true;
+      }
+    }
+    return false;
   }
   
   /**
@@ -192,7 +244,7 @@ export class GooglePhotosService {
       script.onload = () => {
         gapi.load('picker', () => {
           this.pickerApiLoaded = true;
-          console.log('Google Picker API carregada');
+          this.secureLog('Google Picker API carregada');
         });
       };
       document.head.appendChild(script);
@@ -216,7 +268,7 @@ export class GooglePhotosService {
 
   private initializeGoogleClient(): void {
     if (typeof google !== 'undefined' && google.accounts) {
-      console.log('Google: Inicializando com escopos:', this.SCOPES);
+      this.secureLog('Google: Inicializando com escopos:', this.SCOPES);
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.CLIENT_ID,
         scope: this.SCOPES,
@@ -225,8 +277,8 @@ export class GooglePhotosService {
             this.accessToken = response.access_token;
             this.isAuthenticated.set(true);
             this.fetchUserInfo().then(() => this.saveToStorage());
-            console.log('Google: Login bem sucedido!');
-            console.log('Google: Escopos CONCEDIDOS:', response.scope);
+            this.secureLog('Google: Login bem sucedido!');
+            this.secureLog('Google: Escopos CONCEDIDOS:', response.scope);
           } else if (response.error) {
             console.error('Google: Erro no login:', response.error, response);
             this.error.set(`Erro no login: ${response.error}`);
@@ -254,7 +306,7 @@ export class GooglePhotosService {
     // Revogar token no Google
     if (this.accessToken && typeof google !== 'undefined') {
       google.accounts.oauth2.revoke(this.accessToken, () => {
-        console.log('Google Photos: Token revogado');
+        this.secureLog('Google Photos: Token revogado');
       });
     }
     
@@ -299,7 +351,7 @@ export class GooglePhotosService {
     
     this.isLoading.set(true);
     this.error.set(null);
-    console.log('Google Drive: Buscando pastas...');
+    this.secureLog('Google Drive: Buscando pastas...');
     
     try {
       // Usando Google Drive API - buscar apenas pastas reais (não arquivos compactados)
@@ -307,11 +359,11 @@ export class GooglePhotosService {
         "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and trashed=false&pageSize=100&fields=files(id,name,thumbnailLink,iconLink,mimeType)&orderBy=name"
       );
       
-      console.log('Google Drive: Status pastas:', response.status);
+      this.secureLog('Google Drive: Status pastas:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Google Drive: Dados pastas:', data);
+        this.secureLog('Google Drive: Dados pastas:', data);
         
         // Filtrar apenas pastas reais (excluir qualquer coisa com extensão de arquivo compactado no nome)
         const compressedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'];
@@ -330,7 +382,7 @@ export class GooglePhotosService {
           }));
         
         this.albums.set(albums);
-        console.log('Google Drive: Pastas carregadas:', albums.length);
+        this.secureLog('Google Drive: Pastas carregadas:', albums.length);
         
         if (albums.length === 0) {
           this.error.set('Nenhuma pasta encontrada. Verifique se você tem pastas no Google Drive.');
@@ -381,7 +433,7 @@ export class GooglePhotosService {
           }));
         
         this.photos.set(photos);
-        console.log('Google Drive: Imagens da pasta carregadas:', photos.length);
+        this.secureLog('Google Drive: Imagens da pasta carregadas:', photos.length);
         
         if (photos.length === 0) {
           this.error.set('Nenhuma imagem encontrada nesta pasta.');
@@ -407,7 +459,7 @@ export class GooglePhotosService {
     
     this.isLoading.set(true);
     this.error.set(null);
-    console.log('Google Drive: Buscando todas as imagens...');
+    this.secureLog('Google Drive: Buscando todas as imagens...');
     
     try {
       // Usando Google Drive API - buscar APENAS imagens (tipos específicos, não na lixeira)
@@ -417,11 +469,11 @@ export class GooglePhotosService {
         `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)&orderBy=modifiedTime+desc`
       );
       
-      console.log('Google Drive: Status da resposta:', response.status);
+      this.secureLog('Google Drive: Status da resposta:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Google Drive: Dados recebidos:', data);
+        this.secureLog('Google Drive: Dados recebidos:', data);
         
         // Filtro adicional para garantir que são apenas imagens
         const photos = (data.files || [])
@@ -437,7 +489,7 @@ export class GooglePhotosService {
             thumbnailLink: file.thumbnailLink
           }));
         
-        console.log('Google Drive: Total de imagens encontradas:', photos.length);
+        this.secureLog('Google Drive: Total de imagens encontradas:', photos.length);
         this.photos.set(photos);
         
         if (photos.length === 0) {
