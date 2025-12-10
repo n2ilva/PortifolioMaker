@@ -747,6 +747,94 @@
         <h4>Configurações do Slide</h4>
         
         @if (slideService.currentSlide(); as slide) {
+          <!-- Duração do Slide -->
+          <div class="property-group">
+            <label>
+              <span class="material-icons-round property-icon">schedule</span>
+              Duração do Slide
+            </label>
+            <div class="duration-control">
+              <input 
+                type="range" 
+                min="1" 
+                max="30" 
+                step="1"
+                [value]="slide.duration || 5"
+                (input)="onSlideDurationChange($event)"
+                class="duration-slider"
+              >
+              <div class="duration-value">
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="60"
+                  [value]="slide.duration || 5"
+                  (change)="onSlideDurationChange($event)"
+                  class="duration-input"
+                >
+                <span>seg</span>
+              </div>
+            </div>
+            <button 
+              class="btn-apply-all-duration"
+              (click)="onApplyDurationToAll(slide.duration || 5)"
+              title="Aplicar esta duração a todos os slides"
+            >
+              <span class="material-icons-round">done_all</span>
+              Aplicar a todos
+            </button>
+          </div>
+
+          <!-- Transição do Slide -->
+          <div class="property-group">
+            <label>
+              <span class="material-icons-round property-icon">animation</span>
+              Transição de Entrada
+            </label>
+            <div class="transition-grid">
+              @for (transition of transitionTypes; track transition.id) {
+                <div 
+                  class="transition-item"
+                  [class.active]="(slide.transition?.type || 'none') === transition.id"
+                  (click)="onTransitionChange(transition.id)"
+                  [title]="transition.name"
+                >
+                  <span class="transition-icon material-icons-round">{{ transition.icon }}</span>
+                  <span class="transition-name">{{ transition.name }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Velocidade da Transição -->
+          @if (slide.transition?.type && slide.transition!.type !== 'none') {
+            <div class="property-group">
+              <label>Velocidade da Transição</label>
+              <div class="transition-speed-control">
+                <input 
+                  type="range" 
+                  min="0.2" 
+                  max="2" 
+                  step="0.1"
+                  [value]="slide.transition?.duration || 0.5"
+                  (input)="onTransitionDurationChange($event)"
+                  class="transition-speed-slider"
+                >
+                <span class="transition-speed-value">{{ (slide.transition?.duration || 0.5).toFixed(1) }}s</span>
+              </div>
+              <button 
+                class="btn-apply-all-transition"
+                (click)="onApplyTransitionToAll()"
+                title="Aplicar esta transição a todos os slides"
+              >
+                <span class="material-icons-round">done_all</span>
+                Aplicar a todos
+              </button>
+            </div>
+          }
+
+          <div class="separator-line"></div>
+
           <div class="property-group">
             <label>Cor de Fundo</label>
             <input 

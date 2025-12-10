@@ -107,11 +107,49 @@
   </div>
   
   <div class="toolbar-right desktop-only">
+    <button 
+      class="btn btn-export-video" 
+      (click)="onExportVideo()" 
+      [disabled]="isExportingVideo"
+      title="Exportar como vídeo"
+    >
+      @if (isExportingVideo) {
+        <span class="material-icons-round spinning">autorenew</span>
+        @if (videoExportProgress) {
+          {{ videoExportProgress.progress }}%
+        }
+      } @else {
+        <span class="material-icons-round">videocam</span> Vídeo
+      }
+    </button>
     <button class="btn btn-presentation" (click)="onStartPresentation()" title="Iniciar apresentação (F5)">
       <span class="material-icons-round">play_arrow</span> Apresentar
     </button>
   </div>
 </div>
+
+<!-- Modal de progresso de exportação de vídeo -->
+@if (isExportingVideo && videoExportProgress) {
+  <div class="video-export-modal">
+    <div class="video-export-content">
+      <div class="video-export-icon">
+        @if (videoExportProgress.status === 'complete') {
+          <span class="material-icons-round success">check_circle</span>
+        } @else if (videoExportProgress.status === 'error') {
+          <span class="material-icons-round error">error</span>
+        } @else {
+          <span class="material-icons-round spinning">videocam</span>
+        }
+      </div>
+      <h3>Exportando Vídeo</h3>
+      <p>{{ videoExportProgress.message }}</p>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="videoExportProgress.progress"></div>
+      </div>
+      <span class="progress-text">{{ videoExportProgress.progress }}%</span>
+    </div>
+  </div>
+}
 
 <!-- Menu Mobile Dropdown -->
 <div class="mobile-menu" [class.open]="isMobileMenuOpen">
@@ -160,6 +198,9 @@
 
     <div class="mobile-menu-section">
       <span class="mobile-menu-title">Apresentar</span>
+      <button class="mobile-menu-item" (click)="onExportVideo(); closeMobileMenu()" [disabled]="isExportingVideo">
+        <span class="material-icons-round menu-icon">videocam</span> Exportar Vídeo
+      </button>
       <button class="mobile-menu-item presentation" (click)="onStartPresentation(); closeMobileMenu()">
         <span class="material-icons-round menu-icon">play_arrow</span> Apresentar
       </button>

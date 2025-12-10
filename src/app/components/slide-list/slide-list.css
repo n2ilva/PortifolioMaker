@@ -38,8 +38,8 @@
 
 .slide-item {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px;
   margin-bottom: 10px;
   border-radius: 8px;
@@ -57,6 +57,12 @@
   border: 2px solid #00d5ff;
 }
 
+.slide-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .slide-number {
   color: #888;
   font-size: 12px;
@@ -64,12 +70,13 @@
 }
 
 .slide-preview {
-  width: 100px;
-  height: 60px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: 4px;
   position: relative;
   overflow: hidden;
   border: 1px solid #444;
+  flex-shrink: 0;
 }
 
 .preview-content {
@@ -104,10 +111,46 @@
   font-weight: bold;
 }
 
+/* Badges no preview */
+.slide-badges {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.slide-duration-badge {
+  background: rgba(0, 0, 0, 0.75);
+  color: #00d5ff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.slide-transition-badge {
+  background: rgba(0, 0, 0, 0.75);
+  color: #a855f7;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-transition-badge .material-icons-round {
+  font-size: 12px;
+}
+
 .slide-actions {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -117,20 +160,30 @@
 }
 
 .action-btn {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border: none;
   border-radius: 4px;
   background: #444;
   cursor: pointer;
-  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #aaa;
+}
+
+.action-btn .material-icons-round {
+  font-size: 14px;
 }
 
 .action-btn:hover:not(:disabled) {
   background: #555;
+  color: #fff;
+}
+
+.action-btn.delete:hover:not(:disabled) {
+  background: #ff4444;
+  color: #fff;
 }
 
 .action-btn:disabled {

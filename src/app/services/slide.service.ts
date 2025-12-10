@@ -605,6 +605,7 @@ export class SlideService {
       layoutId: layout?.id,
       elements: this.createElementsFromLayout(layout),
       backgroundColor: '#ffffff',
+      duration: 5, // Duração padrão de 5 segundos
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -626,6 +627,7 @@ export class SlideService {
       layoutId: layout?.id,
       elements: this.createElementsFromLayout(layout),
       backgroundColor: '#ffffff',
+      duration: 5, // Duração padrão de 5 segundos
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -1539,6 +1541,60 @@ export class SlideService {
           ? { ...slide, backgroundColor: color, updatedAt: new Date() }
           : slide
       )
+    );
+  }
+
+  // Atualizar duração do slide (para apresentação automática/vídeo)
+  updateSlideDuration(slideId: string, duration: number): void {
+    this.slidesSignal.update(slides =>
+      slides.map(slide => 
+        slide.id === slideId
+          ? { ...slide, duration: Math.max(1, Math.min(60, duration)), updatedAt: new Date() }
+          : slide
+      )
+    );
+  }
+
+  // Atualizar duração de todos os slides
+  updateAllSlidesDuration(duration: number): void {
+    const validDuration = Math.max(1, Math.min(60, duration));
+    this.slidesSignal.update(slides =>
+      slides.map(slide => ({ ...slide, duration: validDuration, updatedAt: new Date() }))
+    );
+  }
+
+  // Atualizar transição do slide atual
+  updateSlideTransition(transitionType: string, transitionDuration?: number): void {
+    const currentId = this.currentSlideIdSignal();
+    if (!currentId) return;
+    
+    this.slidesSignal.update(slides =>
+      slides.map(slide => 
+        slide.id === currentId
+          ? { 
+              ...slide, 
+              transition: {
+                type: transitionType as any,
+                duration: transitionDuration ?? slide.transition?.duration ?? 0.5
+              },
+              updatedAt: new Date() 
+            }
+          : slide
+      )
+    );
+  }
+
+  // Atualizar transição de todos os slides
+  updateAllSlidesTransition(transitionType: string, transitionDuration: number): void {
+    this.slidesSignal.update(slides =>
+      slides.map(slide => ({ 
+        ...slide, 
+        transition: {
+          type: transitionType as any,
+          duration: transitionDuration
+        },
+        updatedAt: new Date() 
+      }))
     );
   }
 

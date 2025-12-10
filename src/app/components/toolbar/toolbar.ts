@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService } from '../../services/google-photos.service';
 import { ProjectStateService } from '../../services/project-state.service';
+import { VideoExportService, VideoExportProgress } from '../../services/video-export.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -16,6 +17,7 @@ export class Toolbar implements AfterViewChecked {
   slideService = inject(SlideService);
   googlePhotos = inject(GooglePhotosService);
   projectState = inject(ProjectStateService);
+  videoExport = inject(VideoExportService);
   
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('projectNameInput') projectNameInput!: ElementRef<HTMLInputElement>;
@@ -24,8 +26,11 @@ export class Toolbar implements AfterViewChecked {
   @Output() exportPdf = new EventEmitter<void>();
   @Output() openProjects = new EventEmitter<void>();
   @Output() saveProject = new EventEmitter<void>();
+  @Output() exportVideo = new EventEmitter<void>();
 
   isExporting = false;
+  isExportingVideo = false;
+  videoExportProgress: VideoExportProgress | null = null;
   isMobileMenuOpen = false;
   isEditingName = false;
   private shouldFocusInput = false;
@@ -273,5 +278,49 @@ export class Toolbar implements AfterViewChecked {
 
   onGoogleLogout(): void {
     this.googlePhotos.logout();
+  }
+
+  // Exportar como vídeo MP4/WebM
+  async onExportVideo(): Promise<void> {
+    if (this.isExportingVideo) return;
+    
+    this.isExportingVideo = true;
+    this.videoExportProgress = null;
+    
+    try {
+      const projectName = this.projectState.currentProjectName() || 'apresentacao';
+      
+      const blob = await this.videoExport.exportToVideo(
+        {
+          width: 1920,
+          height: 1080,
+          fps: 30,
+          quality: 0.92,
+          filename: projectName
+        },
+        (progress) => {
+          this.videoExportProgress = progress;
+        }
+      );
+      
+      if (blob) {
+        this.videoExport.downloadVideo(blob, projectName);
+      }
+    } catch (error) {
+      console.error('Erro ao exportar vídeo:', error);
+      this.videoExportProgress = {
+        status: 'error',
+        currentSlide: 0,
+        totalSlides: this.slideService.slides().length,
+        progress: 0,
+        message: 'Erro ao exportar vídeo'
+      };
+    } finally {
+      // Manter a mensagem de sucesso/erro por alguns segundos
+      setTimeout(() => {
+        this.isExportingVideo = false;
+        this.videoExportProgress = null;
+      }, 3000);
+    }
   }
 }

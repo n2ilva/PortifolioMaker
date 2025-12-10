@@ -133,6 +133,27 @@ export interface LayoutTemplate {
   elements: LayoutElementTemplate[];
 }
 
+// Tipos de transição de slide
+export type SlideTransitionType = 
+  | 'none'
+  | 'fade'
+  | 'slideLeft'
+  | 'slideRight'
+  | 'slideUp'
+  | 'slideDown'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'flip'
+  | 'rotate'
+  | 'blur'
+  | 'dissolve';
+
+// Configuração de transição do slide
+export interface SlideTransition {
+  type: SlideTransitionType;
+  duration: number; // duração em segundos (0.3 - 2)
+}
+
 // Slide completo
 export interface Slide {
   id: string;
@@ -141,6 +162,8 @@ export interface Slide {
   customGridGuides?: LayoutGridGuide[]; // Guias personalizadas para layout custom
   elements: (ImageElement | TextElement)[];
   backgroundColor: string;
+  duration: number; // Duração em segundos para apresentação automática/vídeo
+  transition?: SlideTransition; // Transição de entrada do slide
   createdAt: Date;
   updatedAt: Date;
 }

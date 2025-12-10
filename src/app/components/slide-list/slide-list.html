@@ -4,6 +4,12 @@
     <span class="slide-count">{{ slideService.slides().length }}</span>
   </div>
   
+  <!-- Informação de tempo total -->
+  <div class="duration-info">
+    <span class="material-icons-round">schedule</span>
+    <span>Total: {{ formatDuration(getTotalDuration()) }}</span>
+  </div>
+  
   <div class="slides-container">
     @for (slide of slideService.slides(); track slide.id; let i = $index) {
       <div 
@@ -11,7 +17,22 @@
         [class.active]="slide.id === slideService.currentSlideId()"
         (click)="onSelectSlide(slide)"
       >
-        <span class="slide-number">{{ i + 1 }}</span>
+        <div class="slide-item-header">
+          <span class="slide-number">{{ i + 1 }}</span>
+          <div class="slide-actions">
+            <button class="action-btn" (click)="onDuplicateSlide($event, slide)" title="Duplicar">
+              <span class="material-icons-round">content_copy</span>
+            </button>
+            <button 
+              class="action-btn delete" 
+              (click)="onDeleteSlide($event, slide)" 
+              title="Excluir"
+              [disabled]="slideService.slides().length <= 1"
+            >
+              <span class="material-icons-round">delete</span>
+            </button>
+          </div>
+        </div>
         <div class="slide-preview" [ngStyle]="getSlidePreviewStyle(slide)">
           <div class="preview-content">
             @for (element of slide.elements; track element.id) {
@@ -42,19 +63,17 @@
               }
             }
           </div>
-        </div>
-        <div class="slide-actions">
-          <button class="action-btn" (click)="onDuplicateSlide($event, slide)" title="Duplicar">
-            <span class="material-icons-round">content_copy</span>
-          </button>
-          <button 
-            class="action-btn delete" 
-            (click)="onDeleteSlide($event, slide)" 
-            title="Excluir"
-            [disabled]="slideService.slides().length <= 1"
-          >
-            <span class="material-icons-round">delete</span>
-          </button>
+          <!-- Indicadores no preview -->
+          <div class="slide-badges">
+            <div class="slide-duration-badge" title="Duração do slide">
+              {{ getSlideDuration(slide) }}s
+            </div>
+            @if (slide.transition?.type && slide.transition!.type !== 'none') {
+              <div class="slide-transition-badge" title="Transição: {{ slide.transition!.type }}">
+                <span class="material-icons-round">animation</span>
+              </div>
+            }
+          </div>
         </div>
       </div>
     }

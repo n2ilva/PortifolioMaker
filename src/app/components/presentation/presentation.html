@@ -1,6 +1,13 @@
 <div class="presentation-overlay" *ngIf="isOpen" (click)="nextSlide()">
   <!-- Slide Content -->
-  <div class="presentation-slide" *ngIf="currentSlide" [attr.data-animation-key]="getAnimationKey()">
+  <div 
+    class="presentation-slide" 
+    *ngIf="currentSlide" 
+    [attr.data-animation-key]="getAnimationKey()"
+    [ngClass]="transitionClass"
+    [class.transitioning]="isTransitioning"
+    [style.animation-duration]="isTransitioning ? transitionDuration + 's' : null"
+  >
     <!-- Background Color -->
     <div 
       class="slide-background" 
@@ -98,10 +105,33 @@
   <div class="presentation-controls" [class.visible]="showControls" (click)="$event.stopPropagation()">
     <!-- Top Bar -->
     <div class="top-bar">
+      <!-- Botão de Auto Play -->
+      <button 
+        class="autoplay-btn" 
+        [class.playing]="isAutoPlaying"
+        (click)="toggleAutoPlay()" 
+        [title]="isAutoPlaying ? 'Pausar (P)' : 'Reprodução automática (P)'"
+      >
+        <span class="material-icons">{{ isAutoPlaying ? 'pause' : 'play_arrow' }}</span>
+        @if (isAutoPlaying && timeRemaining > 0) {
+          <span class="autoplay-countdown">{{ timeRemaining }}s</span>
+        }
+      </button>
+      
       <button class="close-btn" (click)="close()" title="Sair (ESC)">
         <span class="material-icons">close</span>
       </button>
     </div>
+    
+    <!-- Barra de progresso do autoplay -->
+    @if (isAutoPlaying) {
+      <div class="autoplay-progress-bar">
+        <div 
+          class="autoplay-progress-fill"
+          [style.animation-duration]="currentSlideDuration + 's'"
+        ></div>
+      </div>
+    }
 
     <!-- Navigation Arrows -->
     <button 
@@ -127,6 +157,9 @@
       <!-- Slide Counter -->
       <div class="slide-counter">
         {{ currentSlideIndex + 1 }} / {{ totalSlides }}
+        @if (currentSlide && currentSlide.duration) {
+          <span class="slide-duration-info">({{ currentSlide.duration }}s)</span>
+        }
       </div>
 
       <!-- Slide Thumbnails -->
@@ -142,7 +175,7 @@
 
       <!-- Keyboard Hint -->
       <div class="keyboard-hint">
-        Use ← → ou clique para navegar • ESC para sair
+        Use ← → ou clique • P para auto play • ESC para sair
       </div>
     </div>
   </div>

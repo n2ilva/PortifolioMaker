@@ -1,7 +1,7 @@
 import { Component, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
-import { ImageElement, TextElement, AnimationType } from '../../models/slide.model';
+import { ImageElement, TextElement, AnimationType, SlideTransitionType } from '../../models/slide.model';
 
 @Component({
   selector: 'app-presentation',
@@ -19,16 +19,28 @@ export class PresentationComponent {
   
   // Controle de animações
   private animationKey = 0; // Usado para forçar re-render de animações
+  
+  // Controle de reprodução automática
+  isAutoPlaying = false;
+  private autoPlayTimeout: any;
+  timeRemaining = 0;
+  private countdownInterval: any;
+  
+  // Controle de transição
+  isTransitioning = false;
+  transitionClass = '';
 
   open(): void {
     this.isOpen = true;
     this.currentSlideIndex = this.getCurrentSlideIndex();
     this.enterFullscreen();
     this.resetControlsTimeout();
+    // Não dispara transição na abertura - só após play ou navegação manual
   }
 
   close(): void {
     this.isOpen = false;
+    this.stopAutoPlay();
     this.exitFullscreen();
   }
 
@@ -47,11 +59,53 @@ export class PresentationComponent {
     return this.slideService.slides().length;
   }
 
+  // Obter duração do slide atual
+  get currentSlideDuration(): number {
+    return this.currentSlide?.duration || 5;
+  }
+
+  // Obter classe de transição do slide atual
+  get currentTransitionClass(): string {
+    if (!this.isTransitioning) return '';
+    const transition = this.currentSlide?.transition;
+    if (!transition || transition.type === 'none') return '';
+    return `transition-${transition.type}`;
+  }
+
+  // Obter duração da transição
+  get transitionDuration(): number {
+    return this.currentSlide?.transition?.duration || 0.5;
+  }
+
+  // Disparar transição ao mudar de slide
+  private triggerTransition(): void {
+    const transition = this.currentSlide?.transition;
+    if (!transition || transition.type === 'none') return;
+    
+    this.isTransitioning = true;
+    this.transitionClass = `transition-${transition.type}`;
+    
+    // Remover a classe após a animação
+    setTimeout(() => {
+      this.isTransitioning = false;
+      this.transitionClass = '';
+    }, (transition.duration || 0.5) * 1000);
+  }
+
   nextSlide(): void {
     if (this.currentSlideIndex < this.totalSlides - 1) {
       this.currentSlideIndex++;
       this.resetAnimations();
       this.resetControlsTimeout();
+      this.triggerTransition();
+      
+      // Se autoplay está ativo, reiniciar timer
+      if (this.isAutoPlaying) {
+        this.scheduleNextSlide();
+      }
+    } else if (this.isAutoPlaying) {
+      // Parar autoplay no fim
+      this.stopAutoPlay();
     }
   }
 
@@ -60,6 +114,12 @@ export class PresentationComponent {
       this.currentSlideIndex--;
       this.resetAnimations();
       this.resetControlsTimeout();
+      this.triggerTransition();
+      
+      // Se autoplay está ativo, reiniciar timer
+      if (this.isAutoPlaying) {
+        this.scheduleNextSlide();
+      }
     }
   }
 
@@ -68,7 +128,71 @@ export class PresentationComponent {
       this.currentSlideIndex = index;
       this.resetAnimations();
       this.resetControlsTimeout();
+      this.triggerTransition();
+      
+      // Se autoplay está ativo, reiniciar timer
+      if (this.isAutoPlaying) {
+        this.scheduleNextSlide();
+      }
     }
+  }
+
+  // Alternar reprodução automática
+  toggleAutoPlay(): void {
+    if (this.isAutoPlaying) {
+      this.stopAutoPlay();
+    } else {
+      this.startAutoPlay();
+    }
+  }
+
+  // Iniciar reprodução automática
+  startAutoPlay(): void {
+    this.isAutoPlaying = true;
+    this.scheduleNextSlide();
+  }
+
+  // Parar reprodução automática
+  stopAutoPlay(): void {
+    this.isAutoPlaying = false;
+    this.timeRemaining = 0;
+    
+    if (this.autoPlayTimeout) {
+      clearTimeout(this.autoPlayTimeout);
+      this.autoPlayTimeout = null;
+    }
+    
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+  }
+
+  // Agendar próximo slide
+  private scheduleNextSlide(): void {
+    // Limpar timers anteriores
+    if (this.autoPlayTimeout) {
+      clearTimeout(this.autoPlayTimeout);
+    }
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+    
+    const duration = this.currentSlideDuration;
+    this.timeRemaining = duration;
+    
+    // Countdown visual
+    this.countdownInterval = setInterval(() => {
+      this.timeRemaining = Math.max(0, this.timeRemaining - 1);
+    }, 1000);
+    
+    // Timer para avançar slide
+    this.autoPlayTimeout = setTimeout(() => {
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+      }
+      this.nextSlide();
+    }, duration * 1000);
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -97,6 +221,11 @@ export class PresentationComponent {
         break;
       case 'End':
         this.goToSlide(this.totalSlides - 1);
+        break;
+      case 'p':
+      case 'P':
+        // Tecla P para play/pause automático
+        this.toggleAutoPlay();
         break;
     }
   }

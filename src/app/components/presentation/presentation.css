@@ -94,8 +94,71 @@
   padding: 20px;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 15px;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
   pointer-events: auto;
+}
+
+/* Botão de Auto Play */
+.autoplay-btn {
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.autoplay-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.autoplay-btn.playing {
+  background: rgba(0, 213, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 213, 255, 0.5);
+}
+
+.autoplay-countdown {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: #00d5ff;
+  white-space: nowrap;
+}
+
+/* Barra de progresso do autoplay */
+.autoplay-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.autoplay-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00d5ff, #38bdf8);
+  width: 0;
+  animation: progress-fill linear forwards;
+}
+
+@keyframes progress-fill {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 .close-btn {
@@ -175,6 +238,15 @@
   color: white;
   font-size: 16px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slide-duration-info {
+  color: #00d5ff;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .slide-dots {
@@ -398,3 +470,178 @@
   }
 }
 
+/* ============== Transições de Slide ============== */
+
+/* Fade */
+.transition-fade {
+  animation: slideFade ease-out forwards;
+}
+
+@keyframes slideFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide Left */
+.transition-slideLeft {
+  animation: slideFromRight ease-out forwards;
+}
+
+@keyframes slideFromRight {
+  from { 
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Slide Right */
+.transition-slideRight {
+  animation: slideFromLeft ease-out forwards;
+}
+
+@keyframes slideFromLeft {
+  from { 
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Slide Up */
+.transition-slideUp {
+  animation: slideFromBottom ease-out forwards;
+}
+
+@keyframes slideFromBottom {
+  from { 
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Slide Down */
+.transition-slideDown {
+  animation: slideFromTop ease-out forwards;
+}
+
+@keyframes slideFromTop {
+  from { 
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Zoom In */
+.transition-zoomIn {
+  animation: zoomIn ease-out forwards;
+}
+
+@keyframes zoomIn {
+  from { 
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Zoom Out */
+.transition-zoomOut {
+  animation: zoomOut ease-out forwards;
+}
+
+@keyframes zoomOut {
+  from { 
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  to { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Flip */
+.transition-flip {
+  animation: flipIn ease-out forwards;
+  transform-style: preserve-3d;
+}
+
+@keyframes flipIn {
+  from { 
+    transform: perspective(1000px) rotateY(90deg);
+    opacity: 0;
+  }
+  to { 
+    transform: perspective(1000px) rotateY(0);
+    opacity: 1;
+  }
+}
+
+/* Rotate */
+.transition-rotate {
+  animation: rotateIn ease-out forwards;
+}
+
+@keyframes rotateIn {
+  from { 
+    transform: rotate(-180deg) scale(0.5);
+    opacity: 0;
+  }
+  to { 
+    transform: rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Blur */
+.transition-blur {
+  animation: blurIn ease-out forwards;
+}
+
+@keyframes blurIn {
+  from { 
+    filter: blur(30px);
+    opacity: 0;
+  }
+  to { 
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+/* Dissolve */
+.transition-dissolve {
+  animation: dissolveIn ease-out forwards;
+}
+
+@keyframes dissolveIn {
+  0% { 
+    opacity: 0;
+    filter: brightness(2) contrast(0.5);
+  }
+  50% {
+    filter: brightness(1.5) contrast(0.8);
+  }
+  100% { 
+    opacity: 1;
+    filter: brightness(1) contrast(1);
+  }
+}

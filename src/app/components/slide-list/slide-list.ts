@@ -31,4 +31,24 @@ export class SlideList {
       'background-color': slide.backgroundColor
     };
   }
+
+  // Obter duração do slide (com fallback)
+  getSlideDuration(slide: Slide): number {
+    return slide.duration || 5;
+  }
+
+  // Calcular tempo total da apresentação
+  getTotalDuration(): number {
+    return this.slideService.slides().reduce((total, slide) => total + (slide.duration || 5), 0);
+  }
+
+  // Formatar tempo em minutos e segundos
+  formatDuration(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  }
 }

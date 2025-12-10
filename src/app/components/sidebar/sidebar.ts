@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
 import { SlideService } from '../../services/slide.service';
-import { LayoutTemplate, AnimationType, ElementAnimation } from '../../models/slide.model';
+import { LayoutTemplate, AnimationType, ElementAnimation, SlideTransitionType } from '../../models/slide.model';
 import { ImageElement, TextElement } from '../../models/slide.model';
 
 interface BackgroundTheme {
@@ -14,6 +14,12 @@ interface BackgroundTheme {
   isCustomImage?: boolean; // Se for uma imagem personalizada
   imageData?: string; // Base64 da imagem completa ou caminho do asset
   isUserAdded?: boolean; // Se foi adicionado pelo usuário (pode ser removido)
+}
+
+interface TransitionOption {
+  id: SlideTransitionType;
+  name: string;
+  icon: string;
 }
 
 // Chave para localStorage dos temas personalizados
@@ -129,6 +135,22 @@ export class Sidebar {
       console.warn('Erro ao salvar temas personalizados:', error);
     }
   }
+
+  // Tipos de transição disponíveis
+  transitionTypes: TransitionOption[] = [
+    { id: 'none', name: 'Nenhuma', icon: 'block' },
+    { id: 'fade', name: 'Fade', icon: 'gradient' },
+    { id: 'slideLeft', name: 'Deslizar ←', icon: 'arrow_back' },
+    { id: 'slideRight', name: 'Deslizar →', icon: 'arrow_forward' },
+    { id: 'slideUp', name: 'Deslizar ↑', icon: 'arrow_upward' },
+    { id: 'slideDown', name: 'Deslizar ↓', icon: 'arrow_downward' },
+    { id: 'zoomIn', name: 'Zoom In', icon: 'zoom_in' },
+    { id: 'zoomOut', name: 'Zoom Out', icon: 'zoom_out' },
+    { id: 'flip', name: 'Virar', icon: 'flip' },
+    { id: 'rotate', name: 'Girar', icon: 'rotate_right' },
+    { id: 'blur', name: 'Desfoque', icon: 'blur_on' },
+    { id: 'dissolve', name: 'Dissolver', icon: 'auto_awesome' }
+  ];
 
   // Lista de fontes disponíveis
   fontList = [
@@ -312,6 +334,51 @@ export class Sidebar {
   getPreviewCells(): number[] {
     return Array(this.customGridColumns * this.customGridRows).fill(0).map((_, i) => i + 1);
   }
+
+  // ============== Controles de Duração do Slide ==============
+  
+  onSlideDurationChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const duration = parseInt(input.value, 10) || 5;
+    const currentSlide = this.slideService.currentSlide();
+    if (currentSlide) {
+      this.slideService.updateSlideDuration(currentSlide.id, duration);
+    }
+  }
+
+  onApplyDurationToAll(duration: number): void {
+    this.slideService.updateAllSlidesDuration(duration);
+  }
+
+  // ============== Controles de Transição do Slide ==============
+
+  onTransitionChange(transitionType: string): void {
+    this.slideService.updateSlideTransition(transitionType);
+  }
+
+  onTransitionDurationChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const duration = parseFloat(input.value) || 0.5;
+    const currentSlide = this.slideService.currentSlide();
+    if (currentSlide) {
+      this.slideService.updateSlideTransition(
+        currentSlide.transition?.type || 'fade',
+        duration
+      );
+    }
+  }
+
+  onApplyTransitionToAll(): void {
+    const currentSlide = this.slideService.currentSlide();
+    if (currentSlide?.transition) {
+      this.slideService.updateAllSlidesTransition(
+        currentSlide.transition.type,
+        currentSlide.transition.duration
+      );
+    }
+  }
+
+  // ============== Controles de Cor de Fundo ==============
 
   onBackgroundColorChange(event: Event): void {
     const input = event.target as HTMLInputElement;
