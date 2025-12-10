@@ -158,116 +158,48 @@ export class PhotoImportComponent {
     this.cdr.detectChanges();
     
     const newPhotos: PhotoFile[] = [];
-    const batchSize = 3;
     
-    try {
-      for (let i = 0; i < imageFiles.length; i += batchSize) {
-        const batch = imageFiles.slice(i, i + batchSize);
-        
-        const batchResults = await Promise.all(
-          batch.map(async (file) => {
-            try {
-              const orderNumber = this.extractOrderNumber(file.name);
-              const dataUrl = await this.resizeAndReadFile(file, 1920);
-              
-              return {
-                file,
-                name: file.name,
-                orderNumber: orderNumber || (this.photos.length + newPhotos.length + 1),
-                dataUrl,
-                targetSlide: 1,
-                slotInSlide: 1
-              } as PhotoFile;
-            } catch (err) {
-              console.error('Erro ao processar arquivo:', file.name, err);
-              return null;
-            }
-          })
-        );
-        
-        // Filtrar resultados nulos (erros)
-        const validResults = batchResults.filter((r): r is PhotoFile => r !== null);
-        newPhotos.push(...validResults);
-        
-        this.downloadProgress = { completed: newPhotos.length, total: imageFiles.length };
-        this.cdr.detectChanges();
-        
-        // Pequeno delay para permitir UI atualizar
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
-
-      this.photos = [...this.photos, ...newPhotos].sort((a, b) => a.orderNumber - b.orderNumber);
-      this.autoDistributePhotos();
+    // Processar UMA imagem por vez para não travar
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
       
-    } catch (error) {
-      console.error('Erro ao processar arquivos:', error);
-      this.errorMessage = 'Erro ao processar algumas imagens.';
+      try {
+        const orderNumber = this.extractOrderNumber(file.name);
+        const dataUrl = await this.readFileAsDataUrl(file);
+        
+        newPhotos.push({
+          file,
+          name: file.name,
+          orderNumber: orderNumber || (this.photos.length + newPhotos.length + 1),
+          dataUrl,
+          targetSlide: 1,
+          slotInSlide: 1
+        } as PhotoFile);
+        
+      } catch (err) {
+        console.error('Erro ao processar arquivo:', file.name, err);
+      }
+      
+      this.downloadProgress = { completed: i + 1, total: imageFiles.length };
+      this.cdr.detectChanges();
+      
+      // Dar tempo pro browser respirar
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
+
+    this.photos = [...this.photos, ...newPhotos].sort((a, b) => a.orderNumber - b.orderNumber);
+    this.autoDistributePhotos();
     
     this.isProcessing = false;
     this.downloadProgress = { completed: 0, total: 0 };
     this.cdr.detectChanges();
   }
 
-  // Redimensionar imagem para melhor performance
-  private resizeAndReadFile(file: File, maxSize: number): Promise<string> {
+  private readFileAsDataUrl(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (!result) {
-          reject(new Error('Falha ao ler arquivo'));
-          return;
-        }
-        
-        const img = new Image();
-        
-        img.onload = () => {
-          try {
-            // Verificar se precisa redimensionar
-            if (img.width <= maxSize && img.height <= maxSize) {
-              resolve(result);
-              return;
-            }
-            
-            // Calcular novas dimensões mantendo proporção
-            let width = img.width;
-            let height = img.height;
-            
-            if (width > height && width > maxSize) {
-              height = Math.round((height * maxSize) / width);
-              width = maxSize;
-            } else if (height > maxSize) {
-              width = Math.round((width * maxSize) / height);
-              height = maxSize;
-            }
-            
-            // Criar canvas e redimensionar
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL('image/jpeg', 0.85));
-            } else {
-              resolve(result);
-            }
-          } catch (err) {
-            console.error('Erro no processamento da imagem:', err);
-            resolve(result); // Retorna original em caso de erro
-          }
-        };
-        
-        img.onerror = () => {
-          reject(new Error('Falha ao carregar imagem'));
-        };
-        
-        img.src = result;
-      };
-      reader.onerror = reject;
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
       reader.readAsDataURL(file);
     });
   }
@@ -283,15 +215,6 @@ export class PhotoImportComponent {
       }
     }
     return 0;
-  }
-
-  private readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   autoDistributePhotos(): void {
