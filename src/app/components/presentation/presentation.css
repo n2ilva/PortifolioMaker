@@ -16,6 +16,11 @@
   position: relative;
   background: white;
   overflow: hidden;
+  /* Dimensões padrão - serão sobrescritas pelas media queries */
+  width: 100vw;
+  height: calc(100vw * 9 / 16);
+  max-height: 100vh;
+  max-width: calc(100vh * 16 / 9);
 }
 
 /* Manter proporção 16:9 igual ao editor (960x540) */

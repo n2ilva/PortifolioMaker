@@ -240,6 +240,29 @@
   background: #5a9c69;
 }
 
+.action-btn.export-pdf {
+  background: #9b59b6;
+  border-color: #a86bc4;
+}
+
+.action-btn.export-pdf:hover {
+  background: #a86bc4;
+}
+
+.action-btn.export-pdf:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Tabs */
 .tabs {
   display: flex;
@@ -786,4 +809,287 @@
   .save-options {
     flex-direction: column;
   }
+}
+
+/* ==================== NOVOS ESTILOS DE AUTENTICAÇÃO ==================== */
+
+/* Botões de Login */
+.login-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.google-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #fff;
+  border: none;
+  border-radius: 6px;
+  color: #333;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.google-login-btn:hover {
+  background: #f0f0f0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.google-login-btn.full-width {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+.email-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #00d5ff;
+  border-radius: 6px;
+  color: #00d5ff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.email-login-btn:hover {
+  background: #00d5ff22;
+}
+
+.email-login-btn .material-icons {
+  font-size: 18px;
+}
+
+/* Avatar Placeholder */
+.user-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #333;
+  border: 2px solid #00d5ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar-placeholder .material-icons {
+  font-size: 20px;
+  color: #888;
+}
+
+/* Login Empty State Button */
+.btn-login-empty {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #00d5ff 0%, #00a0cc 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-login-empty:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 213, 255, 0.3);
+}
+
+/* Auth Dialog */
+.auth-dialog {
+  max-width: 400px;
+  position: relative;
+}
+
+.dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.dialog-close:hover {
+  background: #333;
+  color: #fff;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #333;
+}
+
+.auth-divider span {
+  padding: 0 12px;
+}
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #5a2a2a;
+  border-radius: 6px;
+  color: #ff8888;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.auth-error .material-icons {
+  font-size: 18px;
+}
+
+.auth-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #2a5a2a;
+  border-radius: 6px;
+  color: #88ff88;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.auth-success .material-icons {
+  font-size: 18px;
+}
+
+.btn-auth-submit {
+  width: 100%;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #00d5ff 0%, #00a0cc 100%);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-auth-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 213, 255, 0.3);
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 16px;
+  color: #888;
+  font-size: 13px;
+}
+
+.auth-switch button {
+  background: none;
+  border: none;
+  color: #00d5ff;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.auth-switch button:hover {
+  color: #00a0cc;
+}
+
+/* Dialog actions com 3 botões */
+.dialog-actions.three-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.dialog-actions.three-buttons .btn-cancel {
+  flex: 1;
+}
+
+.dialog-actions.three-buttons .btn-discard {
+  flex: 1;
+  padding: 10px 16px;
+  background: #5a3a3a;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dialog-actions.three-buttons .btn-discard:hover {
+  background: #7a4a4a;
+}
+
+.dialog-actions.three-buttons .btn-save {
+  flex: 1;
+}
+
+/* Material Icons fix */
+.material-icons {
+  font-family: 'Material Icons', 'Material Icons Outlined', sans-serif;
+  font-size: 24px;
+  vertical-align: middle;
+}
+
+.modal-header h2 .material-icons,
+.action-btn .material-icons,
+.tab .material-icons,
+.logout-btn .material-icons {
+  font-size: 20px;
+}
+
+.empty-icon {
+  font-size: 64px !important;
+  color: #444;
+  margin-bottom: 16px;
+}
+
+.thumbnail-placeholder {
+  font-size: 48px !important;
+  color: #555;
+}
+
+.project-badge .material-icons {
+  font-size: 14px;
+}
+
+.btn-delete .material-icons,
+.btn-export .material-icons {
+  font-size: 18px;
 }

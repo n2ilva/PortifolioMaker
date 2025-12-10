@@ -1,14 +1,14 @@
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { SlideService } from './slide.service';
 import { ProjectStorageService } from './project-storage.service';
-import { GooglePhotosService } from './google-photos.service';
+import { SupabaseService } from './supabase.service';
 
 export interface CurrentProjectInfo {
   id: string | null;
-  driveId: string | null;
+  cloudId: string | null;
   name: string;
   savedLocally: boolean;
-  savedToDrive: boolean;
+  savedToCloud: boolean;
 }
 
 @Injectable({
@@ -17,11 +17,11 @@ export interface CurrentProjectInfo {
 export class ProjectStateService {
   private slideService = inject(SlideService);
   private projectStorage = inject(ProjectStorageService);
-  private googleService = inject(GooglePhotosService);
+  private supabase = inject(SupabaseService);
   
   // Estado do projeto atual
   private currentProjectIdSignal = signal<string | null>(null);
-  private currentProjectDriveIdSignal = signal<string | null>(null);
+  private currentProjectCloudIdSignal = signal<string | null>(null);
   private currentProjectNameSignal = signal<string>('Novo Projeto');
   private hasUnsavedChangesSignal = signal<boolean>(false);
   private lastSavedHashSignal = signal<string>('');
@@ -32,14 +32,14 @@ export class ProjectStateService {
   private readonly AUTO_SAVE_DELAY = 3000; // 3 segundos após última alteração
   
   // Computed values públicos
-  currentProjectId = computed(() => this.currentProjectIdSignal());
-  currentProjectDriveId = computed(() => this.currentProjectDriveIdSignal());
+  currentProjectId = computed(() => this.currentProjectIdSignal() || this.currentProjectCloudIdSignal());
+  currentProjectDriveId = computed(() => this.currentProjectCloudIdSignal()); // Mantido para compatibilidade
   currentProjectName = computed(() => this.currentProjectNameSignal());
   hasUnsavedChanges = computed(() => this.hasUnsavedChangesSignal());
   
   // Verifica se o projeto já foi salvo em algum lugar
   isProjectSaved = computed(() => {
-    return this.currentProjectIdSignal() !== null || this.currentProjectDriveIdSignal() !== null;
+    return this.currentProjectIdSignal() !== null || this.currentProjectCloudIdSignal() !== null;
   });
   
   constructor() {
@@ -60,9 +60,11 @@ export class ProjectStateService {
     });
   }
   
-  // Gerar hash simples para comparar estados
-  private computeHash(slides: any[]): string {
-    return JSON.stringify(slides).length + '_' + slides.length;
+  // Gerar hash simples para comparar estados (inclui nome do projeto e nomes dos slides)
+  private computeHash(slides: any[], name?: string): string {
+    const projectName = name || this.currentProjectNameSignal();
+    const slideNames = slides.map(s => s.name || '').join('|');
+    return projectName + '_' + slideNames + '_' + JSON.stringify(slides).length + '_' + slides.length;
   }
   
   // Agendar auto-save com debounce
@@ -97,21 +99,12 @@ export class ProjectStateService {
       );
     }
     
-    // Salvar no Drive se tiver ID do Drive
-    if (this.currentProjectDriveIdSignal() && this.googleService.isAuthenticated()) {
-      const projectData = {
+    // Salvar no Supabase se tiver ID de nuvem
+    if (this.currentProjectCloudIdSignal() && this.supabase.isAuthenticated()) {
+      await this.supabase.updateProject(this.currentProjectCloudIdSignal()!, {
         name: projectName,
-        slides,
-        currentSlideId,
-        updatedAt: new Date(),
-        version: 1
-      };
-      
-      await this.googleService.saveProjectToDrive(
-        projectData,
-        projectName,
-        this.currentProjectDriveIdSignal()!
-      );
+        slides
+      });
     }
     
     // Atualizar hash e marcar como salvo
@@ -123,11 +116,11 @@ export class ProjectStateService {
   // Definir projeto atual após carregar
   setCurrentProject(
     localId: string | null, 
-    driveId: string | null, 
+    cloudId: string | null, 
     name: string
   ) {
     this.currentProjectIdSignal.set(localId);
-    this.currentProjectDriveIdSignal.set(driveId);
+    this.currentProjectCloudIdSignal.set(cloudId);
     this.currentProjectNameSignal.set(name);
     
     // Atualizar hash para o estado atual (recém carregado = salvo)
@@ -139,16 +132,29 @@ export class ProjectStateService {
   // Limpar projeto atual (novo projeto)
   clearCurrentProject() {
     this.currentProjectIdSignal.set(null);
-    this.currentProjectDriveIdSignal.set(null);
+    this.currentProjectCloudIdSignal.set(null);
     this.currentProjectNameSignal.set('Novo Projeto');
     this.lastSavedHashSignal.set('');
     this.hasUnsavedChangesSignal.set(false);
   }
   
+  // Alterar apenas o nome do projeto
+  setProjectName(name: string) {
+    if (name && name.trim()) {
+      this.currentProjectNameSignal.set(name.trim());
+      this.hasUnsavedChangesSignal.set(true);
+      
+      // Disparar auto-save se o projeto já foi salvo anteriormente
+      if (this.isProjectSaved() && this.autoSaveEnabledSignal()) {
+        this.scheduleAutoSave();
+      }
+    }
+  }
+  
   // Marcar como salvo após salvar manualmente
-  markAsSaved(localId?: string, driveId?: string, name?: string) {
+  markAsSaved(localId?: string, cloudId?: string, name?: string) {
     if (localId) this.currentProjectIdSignal.set(localId);
-    if (driveId) this.currentProjectDriveIdSignal.set(driveId);
+    if (cloudId) this.currentProjectCloudIdSignal.set(cloudId);
     if (name) this.currentProjectNameSignal.set(name);
     
     const slides = this.slideService.slides();

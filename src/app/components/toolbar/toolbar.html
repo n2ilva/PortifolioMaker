@@ -7,9 +7,26 @@
     
     <!-- Indicador do Projeto Atual -->
     <div class="project-indicator">
-      <span class="project-name">
-        {{ projectState.currentProjectName() || 'Novo Projeto' }}
-      </span>
+      @if (isEditingName) {
+        <input 
+          #projectNameInput
+          type="text" 
+          class="project-name-input"
+          [value]="projectState.currentProjectName() || 'Novo Projeto'"
+          (blur)="saveProjectName($event)"
+          (keydown.enter)="saveProjectName($event)"
+          (keydown.escape)="cancelEditName()"
+        >
+      } @else {
+        <span 
+          class="project-name" 
+          (click)="startEditName()" 
+          title="Clique para editar o nome do projeto"
+        >
+          {{ projectState.currentProjectName() || 'Novo Projeto' }}
+          <span class="edit-icon material-icons-round">edit</span>
+        </span>
+      }
       @if (projectState.hasUnsavedChanges()) {
         <span class="save-status unsaved" title="Alterações não salvas - Clique para salvar" (click)="onSaveProject()">
           <span class="material-icons-round">circle</span>
@@ -82,18 +99,6 @@
     <button class="btn btn-presentation" (click)="onStartPresentation()" title="Iniciar apresentação (F5)">
       <span class="material-icons-round">play_arrow</span> Apresentar
     </button>
-    <button 
-      class="btn btn-success" 
-      (click)="onExportPdf()" 
-      [disabled]="isExporting"
-      title="Exportar como PDF"
-    >
-      @if (isExporting) {
-        <span class="material-icons-round spin">sync</span> Exportando...
-      } @else {
-        <span class="material-icons-round">picture_as_pdf</span> Exportar PDF
-      }
-    </button>
   </div>
 </div>
 
@@ -143,16 +148,9 @@
     </div>
 
     <div class="mobile-menu-section">
-      <span class="mobile-menu-title">Exportar</span>
+      <span class="mobile-menu-title">Apresentar</span>
       <button class="mobile-menu-item presentation" (click)="onStartPresentation(); closeMobileMenu()">
         <span class="material-icons-round menu-icon">play_arrow</span> Apresentar
-      </button>
-      <button 
-        class="mobile-menu-item success" 
-        (click)="onExportPdf(); closeMobileMenu()"
-        [disabled]="isExporting"
-      >
-        <span class="material-icons-round menu-icon">picture_as_pdf</span> {{ isExporting ? 'Exportando...' : 'Exportar PDF' }}
       </button>
     </div>
 

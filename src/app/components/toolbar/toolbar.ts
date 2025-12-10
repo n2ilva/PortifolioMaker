@@ -1,4 +1,4 @@
-import { Component, inject, ElementRef, ViewChild, Output, EventEmitter } from '@angular/core';
+import { Component, inject, ElementRef, ViewChild, Output, EventEmitter, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService } from '../../services/google-photos.service';
@@ -12,12 +12,13 @@ import html2canvas from 'html2canvas';
   templateUrl: './toolbar.html',
   styleUrl: './toolbar.css'
 })
-export class Toolbar {
+export class Toolbar implements AfterViewChecked {
   slideService = inject(SlideService);
   googlePhotos = inject(GooglePhotosService);
   projectState = inject(ProjectStateService);
   
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('projectNameInput') projectNameInput!: ElementRef<HTMLInputElement>;
   @Output() openBatchImport = new EventEmitter<void>();
   @Output() startPresentation = new EventEmitter<void>();
   @Output() exportPdf = new EventEmitter<void>();
@@ -26,6 +27,34 @@ export class Toolbar {
 
   isExporting = false;
   isMobileMenuOpen = false;
+  isEditingName = false;
+  private shouldFocusInput = false;
+
+  ngAfterViewChecked(): void {
+    if (this.shouldFocusInput && this.projectNameInput) {
+      this.projectNameInput.nativeElement.focus();
+      this.projectNameInput.nativeElement.select();
+      this.shouldFocusInput = false;
+    }
+  }
+
+  startEditName(): void {
+    this.isEditingName = true;
+    this.shouldFocusInput = true;
+  }
+
+  saveProjectName(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const newName = input.value.trim();
+    if (newName && newName !== this.projectState.currentProjectName()) {
+      this.projectState.setProjectName(newName);
+    }
+    this.isEditingName = false;
+  }
+
+  cancelEditName(): void {
+    this.isEditingName = false;
+  }
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen = !this.isMobileMenuOpen;

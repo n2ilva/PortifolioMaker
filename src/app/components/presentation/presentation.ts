@@ -134,22 +134,33 @@ export class PresentationComponent {
   }
 
   getElementStyle(element: ImageElement | TextElement): { [key: string]: string } {
+    const isTextElement = element.type === 'text';
+    
     const styles: { [key: string]: string } = {
       position: 'absolute',
       left: `${element.position.x}%`,
       top: `${element.position.y}%`,
       width: `${element.position.width}%`,
-      height: `${element.position.height}%`,
       'z-index': `${element.zIndex}`
     };
 
-    if (element.border?.radius) {
-      styles['border-radius'] = `${element.border.radius}px`;
+    // Texto tem altura automática, imagem tem altura fixa
+    if (isTextElement) {
+      styles['height'] = 'auto';
+      styles['min-height'] = '30px';
+      styles['max-width'] = `calc(100% - ${element.position.x}%)`;
+    } else {
+      styles['height'] = `${element.position.height}%`;
     }
 
-    // Opacity é armazenado como 0-100, converter para 0-1
-    if (element.opacity !== undefined && element.opacity !== 100) {
-      styles['opacity'] = `${element.opacity / 100}`;
+    if (element.border?.radius) {
+      styles['border-radius'] = `${element.border.radius}px`;
+      styles['overflow'] = 'hidden';
+    }
+
+    // Opacity é armazenado como 0-1
+    if (element.opacity !== undefined && element.opacity !== 1) {
+      styles['opacity'] = `${element.opacity}`;
     }
 
     if (element.rotation) {

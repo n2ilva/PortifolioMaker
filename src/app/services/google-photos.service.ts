@@ -1,6 +1,8 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
+import { SecurityService } from './security.service';
 
 declare const google: any;
+declare const gapi: any;
 
 export interface GooglePhoto {
   id: string;
@@ -24,11 +26,13 @@ export interface GoogleAlbum {
   providedIn: 'root'
 })
 export class GooglePhotosService {
-  private readonly CLIENT_ID = '1093612348738-43kgglh5k9v19nmv04uhf9nufjrljugo.apps.googleusercontent.com';
-  // Usando Google Drive API (leitura de fotos + leitura/escrita de arquivos do app)
+  private readonly CLIENT_ID = '1093612348738-f0ghq8c4jiua7sv6pulgt5alo4fqfgnh.apps.googleusercontent.com';
+  private readonly API_KEY = 'AIzaSyDummyKeyHere'; // Você precisará criar uma API Key
+  
+  // Escopos para Drive (salvar projetos) e informações do usuário
   private readonly SCOPES = [
-    'https://www.googleapis.com/auth/drive.readonly',
-    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.file',              // Google Drive - arquivos do app
+    'https://www.googleapis.com/auth/drive.readonly',          // Google Drive - leitura
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email'
   ].join(' ');
@@ -44,45 +48,99 @@ export class GooglePhotosService {
   albums = signal<GoogleAlbum[]>([]);
   photos = signal<GooglePhoto[]>([]);
   
-  private readonly TOKEN_KEY = 'google_photos_token';
-  private readonly USER_KEY = 'google_photos_user';
+  // Chaves de armazenamento seguro
+  private readonly TOKEN_KEY = 'pm_google_token';
+  private readonly USER_KEY = 'pm_google_user';
+  private readonly TOKEN_EXPIRY_HOURS = 1; // Token expira em 1 hora por segurança
+  
+  // Serviço de segurança
+  private security = inject(SecurityService);
   
   constructor() {
-    this.loadFromStorage();
+    this.loadFromStorageSecure();
     this.loadGoogleApi();
+    this.loadGooglePicker();
   }
   
-  private loadFromStorage(): void {
-    const savedToken = localStorage.getItem(this.TOKEN_KEY);
-    const savedUser = localStorage.getItem(this.USER_KEY);
-    
-    if (savedToken) {
-      this.accessToken = savedToken;
-      this.isAuthenticated.set(true);
+  /**
+   * Carrega dados de forma segura (criptografados)
+   */
+  private async loadFromStorageSecure(): Promise<void> {
+    try {
+      const savedToken = await this.security.secureRetrieve<string>(this.TOKEN_KEY);
+      const savedUser = await this.security.secureRetrieve<{ name: string; email: string; picture: string }>(this.USER_KEY);
       
-      if (savedUser) {
-        try {
-          this.userInfo.set(JSON.parse(savedUser));
-        } catch (e) {
-          console.error('Erro ao carregar usuário salvo');
+      if (savedToken) {
+        this.accessToken = savedToken;
+        this.isAuthenticated.set(true);
+        
+        if (savedUser) {
+          // Sanitizar dados do usuário
+          this.userInfo.set({
+            name: this.security.sanitize(savedUser.name),
+            email: this.security.sanitize(savedUser.email),
+            picture: this.security.sanitizeUrl(savedUser.picture)
+          });
         }
+        
+        // Verificar se o token ainda é válido
+        this.validateToken();
       }
+    } catch (error) {
+      console.error('Erro ao carregar dados seguros:', error);
+      this.clearStorageSecure();
     }
   }
   
-  private saveToStorage(): void {
+  /**
+   * Valida se o token ainda funciona
+   */
+  private async validateToken(): Promise<void> {
+    if (!this.accessToken) return;
+    
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + this.accessToken);
+      if (!response.ok) {
+        console.warn('Token inválido, fazendo logout');
+        this.handleTokenExpired();
+      }
+    } catch {
+      // Se não conseguir validar, mantém o token (pode ser problema de rede)
+    }
+  }
+  
+  /**
+   * Salva dados de forma segura (criptografados)
+   */
+  private async saveToStorageSecure(): Promise<void> {
     if (this.accessToken) {
-      localStorage.setItem(this.TOKEN_KEY, this.accessToken);
+      await this.security.secureStore(this.TOKEN_KEY, this.accessToken, this.TOKEN_EXPIRY_HOURS);
     }
     const user = this.userInfo();
     if (user) {
-      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      await this.security.secureStore(this.USER_KEY, user, this.TOKEN_EXPIRY_HOURS);
     }
   }
   
+  /**
+   * Limpa dados de forma segura
+   */
+  private clearStorageSecure(): void {
+    this.security.secureRemove(this.TOKEN_KEY);
+    this.security.secureRemove(this.USER_KEY);
+  }
+  
+  // Métodos legados para compatibilidade (redirecionam para versões seguras)
+  private loadFromStorage(): void {
+    this.loadFromStorageSecure();
+  }
+  
+  private saveToStorage(): void {
+    this.saveToStorageSecure();
+  }
+  
   private clearStorage(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
+    this.clearStorageSecure();
   }
 
   // Método auxiliar para fazer requisições autenticadas com tratamento de 401
@@ -121,6 +179,26 @@ export class GooglePhotosService {
     this.error.set('Sessão expirada. Por favor, faça login novamente.');
   }
 
+  private pickerApiLoaded = false;
+
+  private loadGooglePicker(): void {
+    // Carregar o script do Google API (para Picker)
+    if (!document.getElementById('google-api-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-api-script';
+      script.src = 'https://apis.google.com/js/api.js';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        gapi.load('picker', () => {
+          this.pickerApiLoaded = true;
+          console.log('Google Picker API carregada');
+        });
+      };
+      document.head.appendChild(script);
+    }
+  }
+
   private loadGoogleApi(): void {
     // Carregar o script do Google Identity Services
     if (!document.getElementById('google-gsi-script')) {
@@ -138,6 +216,7 @@ export class GooglePhotosService {
 
   private initializeGoogleClient(): void {
     if (typeof google !== 'undefined' && google.accounts) {
+      console.log('Google: Inicializando com escopos:', this.SCOPES);
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.CLIENT_ID,
         scope: this.SCOPES,
@@ -146,9 +225,11 @@ export class GooglePhotosService {
             this.accessToken = response.access_token;
             this.isAuthenticated.set(true);
             this.fetchUserInfo().then(() => this.saveToStorage());
-            console.log('Google Photos: Login bem sucedido, escopos:', response.scope);
+            console.log('Google: Login bem sucedido!');
+            console.log('Google: Escopos CONCEDIDOS:', response.scope);
           } else if (response.error) {
-            console.error('Google Photos: Erro no login:', response.error);
+            console.error('Google: Erro no login:', response.error, response);
+            this.error.set(`Erro no login: ${response.error}`);
           }
         },
       });
@@ -217,30 +298,51 @@ export class GooglePhotosService {
     if (!this.accessToken) return;
     
     this.isLoading.set(true);
+    this.error.set(null);
+    console.log('Google Drive: Buscando pastas...');
     
     try {
-      // Usando Google Drive API - buscar pastas que contêm imagens
-      const response = await fetch(
-        "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder'&pageSize=50&fields=files(id,name,thumbnailLink)",
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`
-          }
-        }
+      // Usando Google Drive API - buscar apenas pastas reais (não arquivos compactados)
+      const response = await this.authenticatedFetch(
+        "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and trashed=false&pageSize=100&fields=files(id,name,thumbnailLink,iconLink,mimeType)&orderBy=name"
       );
+      
+      console.log('Google Drive: Status pastas:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        const albums = (data.files || []).map((folder: any) => ({
-          id: folder.id,
-          title: folder.name,
-          coverPhotoBaseUrl: folder.thumbnailLink || '',
-          mediaItemsCount: '0'
-        }));
+        console.log('Google Drive: Dados pastas:', data);
+        
+        // Filtrar apenas pastas reais (excluir qualquer coisa com extensão de arquivo compactado no nome)
+        const compressedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'];
+        
+        const albums = (data.files || [])
+          .filter((folder: any) => {
+            const name = folder.name.toLowerCase();
+            // Excluir se o nome terminar com extensão de arquivo compactado
+            return !compressedExtensions.some(ext => name.endsWith(ext));
+          })
+          .map((folder: any) => ({
+            id: folder.id,
+            title: folder.name,
+            coverPhotoBaseUrl: folder.thumbnailLink || folder.iconLink || '',
+            mediaItemsCount: '?'
+          }));
+        
         this.albums.set(albums);
+        console.log('Google Drive: Pastas carregadas:', albums.length);
+        
+        if (albums.length === 0) {
+          this.error.set('Nenhuma pasta encontrada. Verifique se você tem pastas no Google Drive.');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Google Drive: Erro ao buscar pastas:', response.status, errorData);
+        this.error.set(`Erro ao carregar pastas: ${errorData.error?.message || response.status}`);
       }
     } catch (error) {
       console.error('Erro ao buscar pastas:', error);
+      this.error.set('Erro de conexão');
     } finally {
       this.isLoading.set(false);
     }
@@ -250,35 +352,48 @@ export class GooglePhotosService {
     if (!this.accessToken) return;
     
     this.isLoading.set(true);
+    this.error.set(null);
     
     try {
-      // Usando Google Drive API - buscar imagens dentro de uma pasta
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${albumId}'+in+parents+and+(mimeType+contains+'image/')&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`
-          }
-        }
+      // Usando Google Drive API - buscar APENAS imagens de uma pasta (não na lixeira)
+      // Filtra por tipos de imagem específicos: jpeg, png, gif, webp, bmp, svg
+      const imageQuery = `'${albumId}' in parents and trashed=false and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='image/webp' or mimeType='image/bmp' or mimeType='image/svg+xml' or mimeType='image/heic' or mimeType='image/heif')`;
+      
+      const response = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)&orderBy=name`
       );
       
       if (response.ok) {
         const data = await response.json();
-        const photos = (data.files || []).map((file: any) => ({
-          id: file.id,
-          baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
-          filename: file.name,
-          mimeType: file.mimeType,
-          width: file.imageMediaMetadata?.width || 800,
-          height: file.imageMediaMetadata?.height || 600,
-          selected: false,
-          thumbnailLink: file.thumbnailLink
-        }));
+        
+        // Filtro adicional para garantir que são apenas imagens
+        const photos = (data.files || [])
+          .filter((file: any) => file.mimeType?.startsWith('image/'))
+          .map((file: any) => ({
+            id: file.id,
+            baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+            filename: file.name,
+            mimeType: file.mimeType,
+            width: file.imageMediaMetadata?.width || 800,
+            height: file.imageMediaMetadata?.height || 600,
+            selected: false,
+            thumbnailLink: file.thumbnailLink
+          }));
         
         this.photos.set(photos);
+        console.log('Google Drive: Imagens da pasta carregadas:', photos.length);
+        
+        if (photos.length === 0) {
+          this.error.set('Nenhuma imagem encontrada nesta pasta.');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Google Drive: Erro ao buscar imagens da pasta:', errorData);
+        this.error.set('Erro ao carregar imagens da pasta');
       }
     } catch (error) {
-      console.error('Erro ao buscar fotos da pasta:', error);
+      console.error('Erro ao buscar imagens da pasta:', error);
+      this.error.set('Erro de conexão');
     } finally {
       this.isLoading.set(false);
     }
@@ -295,14 +410,11 @@ export class GooglePhotosService {
     console.log('Google Drive: Buscando todas as imagens...');
     
     try {
-      // Usando Google Drive API - buscar todas as imagens
-      const response = await fetch(
-        "https://www.googleapis.com/drive/v3/files?q=mimeType+contains+'image/'&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)",
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`
-          }
-        }
+      // Usando Google Drive API - buscar APENAS imagens (tipos específicos, não na lixeira)
+      const imageQuery = "trashed=false and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='image/webp' or mimeType='image/bmp' or mimeType='image/svg+xml' or mimeType='image/heic' or mimeType='image/heif')";
+      
+      const response = await this.authenticatedFetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imageQuery)}&pageSize=100&fields=files(id,name,mimeType,thumbnailLink,imageMediaMetadata)&orderBy=modifiedTime+desc`
       );
       
       console.log('Google Drive: Status da resposta:', response.status);
@@ -311,16 +423,19 @@ export class GooglePhotosService {
         const data = await response.json();
         console.log('Google Drive: Dados recebidos:', data);
         
-        const photos = (data.files || []).map((file: any) => ({
-          id: file.id,
-          baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
-          filename: file.name,
-          mimeType: file.mimeType,
-          width: file.imageMediaMetadata?.width || 800,
-          height: file.imageMediaMetadata?.height || 600,
-          selected: false,
-          thumbnailLink: file.thumbnailLink
-        }));
+        // Filtro adicional para garantir que são apenas imagens
+        const photos = (data.files || [])
+          .filter((file: any) => file.mimeType?.startsWith('image/'))
+          .map((file: any) => ({
+            id: file.id,
+            baseUrl: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+            filename: file.name,
+            mimeType: file.mimeType,
+            width: file.imageMediaMetadata?.width || 800,
+            height: file.imageMediaMetadata?.height || 600,
+            selected: false,
+            thumbnailLink: file.thumbnailLink
+          }));
         
         console.log('Google Drive: Total de imagens encontradas:', photos.length);
         this.photos.set(photos);
@@ -350,6 +465,53 @@ export class GooglePhotosService {
     }
   }
 
+  // ===== Google Picker - Selecionar fotos visualmente =====
+  
+  async openPhotoPicker(): Promise<GooglePhoto[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.accessToken) {
+        reject(new Error('Não autenticado'));
+        return;
+      }
+
+      if (!this.pickerApiLoaded || typeof google === 'undefined' || !google.picker) {
+        reject(new Error('Google Picker não carregado'));
+        return;
+      }
+
+      const view = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES);
+      view.setIncludeFolders(true);
+      view.setSelectFolderEnabled(false);
+      
+      const picker = new google.picker.PickerBuilder()
+        .addView(view)
+        .addView(new google.picker.DocsView(google.picker.ViewId.PHOTOS))
+        .setOAuthToken(this.accessToken)
+        .setCallback((data: any) => {
+          if (data.action === google.picker.Action.PICKED) {
+            const photos: GooglePhoto[] = data.docs.map((doc: any) => ({
+              id: doc.id,
+              baseUrl: `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+              filename: doc.name,
+              mimeType: doc.mimeType,
+              width: doc.sizeBytes ? 800 : 800,
+              height: doc.sizeBytes ? 600 : 600,
+              selected: true,
+              thumbnailLink: doc.thumbnails?.[0]?.url || doc.iconUrl
+            }));
+            resolve(photos);
+          } else if (data.action === google.picker.Action.CANCEL) {
+            resolve([]);
+          }
+        })
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setTitle('Selecione as fotos')
+        .build();
+      
+      picker.setVisible(true);
+    });
+  }
+
   togglePhotoSelection(photoId: string): void {
     this.photos.update(photos =>
       photos.map(p => 
@@ -370,15 +532,11 @@ export class GooglePhotosService {
 
   // Converter foto do Google Drive para DataURL para usar nos slides
   async downloadPhotoAsDataUrl(photo: GooglePhoto, maxSize: number = 1920): Promise<string> {
-    // Usar a API do Drive para baixar o arquivo
+    // Usar a API do Google Drive para baixar o arquivo
     const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
     
     try {
-      const response = await fetch(downloadUrl, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`
-        }
-      });
+      const response = await this.authenticatedFetch(downloadUrl);
       
       if (!response.ok) {
         throw new Error(`Erro ao baixar: ${response.status}`);
