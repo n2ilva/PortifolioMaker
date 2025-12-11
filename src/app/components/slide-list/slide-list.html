@@ -18,7 +18,10 @@
         (click)="onSelectSlide(slide)"
       >
         <div class="slide-item-header">
-          <span class="slide-number">{{ i + 1 }}</span>
+          <div class="slide-info">
+            <span class="slide-number">{{ i + 1 }}</span>
+            <span class="slide-name" [title]="slide.name || 'Slide ' + (i + 1)">{{ slide.name || '' }}</span>
+          </div>
           <div class="slide-actions">
             <button class="action-btn" (click)="onDuplicateSlide($event, slide)" title="Duplicar">
               <span class="material-icons-round">content_copy</span>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SlideService } from '../../services/slide.service';
 import { GooglePhotosService, GooglePhoto, GoogleAlbum } from '../../services/google-photos.service';
+import { ImageCompressionService } from '../../services/image-compression.service';
 import { LayoutTemplate } from '../../models/slide.model';
 import { environment } from '../../../environments/environment';
 
@@ -59,6 +60,15 @@ export class PhotoImportComponent {
 
   get layouts(): LayoutTemplate[] {
     return this.slideService.layoutTemplates;
+  }
+
+  // Layouts ordenados por número de slots de imagem (crescente)
+  get sortedLayouts(): LayoutTemplate[] {
+    return [...this.slideService.layoutTemplates].sort((a, b) => {
+      const slotsA = this.countImageSlotsInLayout(a.id);
+      const slotsB = this.countImageSlotsInLayout(b.id);
+      return slotsA - slotsB;
+    });
   }
 
   open(): void {
@@ -208,13 +218,28 @@ export class PhotoImportComponent {
     this.cdr.detectChanges();
   }
 
-  private readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-      reader.readAsDataURL(file);
-    });
+  private async readFileAsDataUrl(file: File): Promise<string> {
+    // Comprimir imagem antes de retornar
+    const compressionService = new ImageCompressionService();
+    try {
+      const result = await compressionService.compressFile(file, {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+        maxSizeKB: 500
+      });
+      console.log(`Foto comprimida: ${compressionService.formatSize(result.originalSize)} → ${compressionService.formatSize(result.compressedSize)} (${result.compressionRatio.toFixed(1)}% redução)`);
+      return result.dataUrl;
+    } catch (error) {
+      console.error('Erro ao comprimir, usando original:', error);
+      // Fallback para leitura sem compressão
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+        reader.readAsDataURL(file);
+      });
+    }
   }
 
   private extractOrderNumber(filename: string): number {
@@ -286,7 +311,16 @@ export class PhotoImportComponent {
 
   onPhotoSlideChange(photo: PhotoFile, event: Event): void {
     const newSlide = parseInt((event.target as HTMLSelectElement).value, 10);
+    this.changePhotoSlide(photo, newSlide);
+  }
+
+  onPhotoSlideChangeModel(photo: PhotoFile, newSlide: number): void {
+    this.changePhotoSlide(photo, newSlide);
+  }
+
+  private changePhotoSlide(photo: PhotoFile, newSlide: number): void {
     const oldSlide = photo.targetSlide;
+    if (oldSlide === newSlide) return;
     
     // Criar config do novo slide se não existir
     let newConfig = this.slideConfigs.find(c => c.slideNumber === newSlide);
@@ -312,6 +346,14 @@ export class PhotoImportComponent {
 
   onPhotoSlotChange(photo: PhotoFile, event: Event): void {
     const newSlot = parseInt((event.target as HTMLSelectElement).value, 10);
+    this.changePhotoSlot(photo, newSlot);
+  }
+
+  onPhotoSlotChangeModel(photo: PhotoFile, newSlot: number): void {
+    this.changePhotoSlot(photo, newSlot);
+  }
+
+  private changePhotoSlot(photo: PhotoFile, newSlot: number): void {
     const config = this.slideConfigs.find(c => c.slideNumber === photo.targetSlide);
     
     if (config) {
@@ -329,12 +371,31 @@ export class PhotoImportComponent {
   }
 
   onPhotoOrderChange(photo: PhotoFile, event: Event): void {
-    photo.orderNumber = parseInt((event.target as HTMLInputElement).value, 10);
-    this.photos.sort((a, b) => a.orderNumber - b.orderNumber);
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    this.changePhotoOrder(photo, value);
+  }
+
+  onPhotoOrderChangeModel(photo: PhotoFile, value: number): void {
+    this.changePhotoOrder(photo, value);
+  }
+
+  private changePhotoOrder(photo: PhotoFile, value: number): void {
+    if (value && value > 0) {
+      photo.orderNumber = value;
+      this.photos.sort((a, b) => a.orderNumber - b.orderNumber);
+    }
   }
 
   onSlideLayoutChange(config: SlideConfig, event: Event): void {
     const layoutId = (event.target as HTMLSelectElement).value;
+    this.changeSlideLayout(config, layoutId);
+  }
+
+  onSlideLayoutChangeModel(config: SlideConfig, layoutId: string): void {
+    this.changeSlideLayout(config, layoutId);
+  }
+
+  private changeSlideLayout(config: SlideConfig, layoutId: string): void {
     const oldImageSlots = config.imageSlots;
     
     config.layoutId = layoutId;

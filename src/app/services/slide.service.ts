@@ -1,15 +1,17 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { 
   Slide, 
   ImageElement, 
   TextElement, 
   LayoutTemplate,
+  LayoutGridGuide,
   ElementPosition,
   AlignmentGuide,
   ElementBorderStyle,
   ElementShadow
 } from '../models/slide.model';
 import { LAYOUT_TEMPLATES } from '../models/layouts.data';
+import { ImageCompressionService } from './image-compression.service';
 
 // Chave para localStorage
 const STORAGE_KEY = 'portifolio-maker-data';
@@ -535,13 +537,43 @@ export class SlideService {
     );
   }
 
-  // Aplicar imagem de fundo personalizada
-  applyBackgroundImage(
+  // Aplicar imagem de fundo personalizada (com compressão automática)
+  async applyBackgroundImage(
     imageData: string,
     scope: 'current' | 'all' = 'current'
-  ): void {
+  ): Promise<void> {
     const current = this.currentSlide();
     if (!current) return;
+
+    // Se for uma URL de asset, carregar e comprimir
+    let compressedImageData = imageData;
+    if (imageData.startsWith('assets/') || !imageData.startsWith('data:')) {
+      try {
+        const compressionService = new ImageCompressionService();
+        // Carregar a imagem do asset
+        const response = await fetch(imageData);
+        const blob = await response.blob();
+        const rawDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        
+        // Comprimir
+        const result = await compressionService.compressDataUrl(rawDataUrl, {
+          maxWidth: 1920,
+          maxHeight: 1080,
+          quality: 0.8,
+          maxSizeKB: 300
+        });
+        compressedImageData = result.dataUrl;
+        console.log(`Fundo de asset comprimido: ${compressionService.formatSize(result.originalSize)} → ${compressionService.formatSize(result.compressedSize)} (${result.compressionRatio.toFixed(1)}% redução)`);
+      } catch (error) {
+        console.warn('Erro ao comprimir imagem de fundo, usando original:', error);
+        compressedImageData = imageData;
+      }
+    }
 
     this.slidesSignal.update(slides =>
       slides.map(s => {
@@ -560,7 +592,7 @@ export class SlideService {
         const bgImage: ImageElement = {
           id: this.generateId(),
           type: 'image',
-          src: imageData,
+          src: compressedImageData,
           alt: 'Imagem de fundo personalizada',
           fit: 'cover',
           position: { x: 0, y: 0, width: 100, height: 100 },
@@ -933,8 +965,8 @@ export class SlideService {
     return positions;
   }
 
-  // Adicionar múltiplas imagens no slide atual
-  addMultipleImages(files: File[]): void {
+  // Adicionar múltiplas imagens no slide atual (com compressão automática)
+  async addMultipleImages(files: File[]): Promise<void> {
     const currentSlide = this.currentSlide();
     if (!currentSlide) {
       // Se não há slide, criar um primeiro
@@ -958,11 +990,22 @@ export class SlideService {
     // Ordenar por número extraído do nome do arquivo
     filesWithOrder.sort((a, b) => a.orderNumber - b.orderNumber);
 
-    // Converter cada arquivo e adicionar como novo elemento no slide atual
-    filesWithOrder.forEach(({ file, orderNumber }, index) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const src = e.target?.result as string;
+    // Converter e comprimir cada arquivo antes de adicionar
+    const compressionService = new ImageCompressionService();
+    
+    for (let index = 0; index < filesWithOrder.length; index++) {
+      const { file, orderNumber } = filesWithOrder[index];
+      
+      try {
+        // Comprimir imagem antes de adicionar
+        const result = await compressionService.compressFile(file, {
+          maxWidth: 1920,
+          maxHeight: 1080,
+          quality: 0.85,
+          maxSizeKB: 500
+        });
+        
+        const src = result.dataUrl;
         
         // Posição padrão com offset para cada imagem não sobrepor
         const offsetX = (index % 3) * 5;
@@ -995,9 +1038,12 @@ export class SlideService {
               : s
           )
         );
-      };
-      reader.readAsDataURL(file);
-    });
+        
+        console.log(`Imagem comprimida: ${compressionService.formatSize(result.originalSize)} → ${compressionService.formatSize(result.compressedSize)} (${result.compressionRatio.toFixed(1)}% redução)`);
+      } catch (error) {
+        console.error('Erro ao comprimir imagem:', error);
+      }
+    }
   }
 
   // Alinhar todos os elementos do slide atual às guias de layout mais próximas
@@ -1176,11 +1222,49 @@ export class SlideService {
   }
 
   // Aplicar layout a um slide existente
+  // MODO: Mantém todos os elementos existentes, apenas muda as guias visuais do layout
   applyLayout(layoutId: string): void {
     const layout = this.layoutTemplates.find(l => l.id === layoutId);
     const slide = this.currentSlide();
     
     if (!layout || !slide) return;
+
+    // Salvar estado antes da alteração
+    this.saveToHistory();
+
+    // Apenas atualizar o layoutId e as guias do layout
+    // Os elementos existentes são MANTIDOS
+    this.slidesSignal.update(slides =>
+      slides.map(s => 
+        s.id === slide.id 
+          ? { 
+              ...s, 
+              layoutId, 
+              // Limpar guias personalizadas para usar as do novo layout
+              customGridGuides: layout.gridGuides || undefined,
+              updatedAt: new Date() 
+            }
+          : s
+      )
+    );
+
+    // Atualizar as guias visíveis no editor
+    if (layout.gridGuides) {
+      this.customGridGuidesSignal.set(layout.gridGuides);
+    } else {
+      this.customGridGuidesSignal.set(null);
+    }
+  }
+
+  // Aplicar layout COM SUBSTITUIÇÃO de elementos (para criar novo slide com layout)
+  applyLayoutWithElements(layoutId: string): void {
+    const layout = this.layoutTemplates.find(l => l.id === layoutId);
+    const slide = this.currentSlide();
+    
+    if (!layout || !slide) return;
+
+    // Salvar estado antes da alteração
+    this.saveToHistory();
 
     // Preservar elementos de fundo decorativos (imagens de fundo)
     const backgroundElements = slide.elements.filter(e => e.metadata?.['backgroundDecor']);
@@ -1253,75 +1337,26 @@ export class SlideService {
   }
 
   // Aplicar layout a um slide específico por ID
+  // MODO: Mantém todos os elementos existentes, apenas muda as guias visuais do layout
   applyLayoutToSlide(slideId: string, layoutId: string): void {
     const layout = this.layoutTemplates.find(l => l.id === layoutId);
     const slide = this.slidesSignal().find(s => s.id === slideId);
     
     if (!layout || !slide) return;
 
-    // Preservar elementos de fundo decorativos
-    const backgroundElements = slide.elements.filter(e => e.metadata?.['backgroundDecor']);
+    // Salvar estado antes da alteração
+    this.saveToHistory();
 
-    // Preservar imagens existentes
-    const existingImages = slide.elements
-      .filter(e => e.type === 'image' && (e as ImageElement).src && !e.metadata?.['backgroundDecor'])
-      .map(e => (e as ImageElement).src);
-
-    // Preservar textos existentes com todas as propriedades
-    const existingTexts = slide.elements
-      .filter(e => e.type === 'text' && !e.metadata?.['backgroundDecor'])
-      .map(e => {
-        const textEl = e as TextElement;
-        return {
-          content: textEl.content,
-          fontSize: textEl.fontSize,
-          fontFamily: textEl.fontFamily,
-          fontWeight: textEl.fontWeight,
-          fontStyle: textEl.fontStyle,
-          color: textEl.color,
-          backgroundColor: textEl.backgroundColor,
-          textAlign: textEl.textAlign,
-          lineHeight: textEl.lineHeight,
-          border: textEl.border
-        };
-      });
-
-    // Criar novos elementos do layout
-    const newElements = this.createElementsFromLayout(layout);
-
-    // Reatribuir imagens e textos existentes
-    let imageIndex = 0;
-    let textIndex = 0;
-    
-    newElements.forEach(element => {
-      if (element.type === 'image' && imageIndex < existingImages.length) {
-        (element as ImageElement).src = existingImages[imageIndex];
-        imageIndex++;
-      } else if (element.type === 'text' && textIndex < existingTexts.length) {
-        const savedText = existingTexts[textIndex];
-        const textEl = element as TextElement;
-        textEl.content = savedText.content;
-        textEl.fontSize = savedText.fontSize;
-        textEl.fontFamily = savedText.fontFamily;
-        textEl.fontWeight = savedText.fontWeight;
-        textEl.fontStyle = savedText.fontStyle;
-        textEl.color = savedText.color;
-        textEl.backgroundColor = savedText.backgroundColor;
-        textEl.textAlign = savedText.textAlign;
-        textEl.lineHeight = savedText.lineHeight;
-        if (savedText.border) {
-          textEl.border = savedText.border;
-        }
-        textIndex++;
-      }
-    });
-
-    const finalElements = [...backgroundElements, ...newElements];
-
+    // Apenas atualizar o layoutId - os elementos são MANTIDOS
     this.slidesSignal.update(slides =>
       slides.map(s => 
         s.id === slideId 
-          ? { ...s, layoutId, elements: finalElements, updatedAt: new Date() }
+          ? { 
+              ...s, 
+              layoutId, 
+              customGridGuides: layout.gridGuides || undefined,
+              updatedAt: new Date() 
+            }
           : s
       )
     );
@@ -1652,11 +1687,28 @@ export class SlideService {
     }
 
     // ==========================================
-    // ALINHAMENTO COM GUIAS DO LAYOUT
+    // ALINHAMENTO COM GUIAS DO LAYOUT OU GUIAS PERSONALIZADAS
     // ==========================================
-    const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
-    if (layout?.gridGuides) {
-      for (const gridGuide of layout.gridGuides) {
+    // Prioridade: guias personalizadas do slide > guias do layout template
+    let gridGuides: LayoutGridGuide[] | undefined;
+    
+    // Primeiro, verificar se o slide tem guias personalizadas
+    if (slide.customGridGuides && slide.customGridGuides.length > 0) {
+      gridGuides = slide.customGridGuides;
+    } else {
+      // Senão, usar as guias do layout template
+      const layout = this.layoutTemplates.find(l => l.id === slide.layoutId);
+      gridGuides = layout?.gridGuides;
+    }
+    
+    // Também considerar as guias ativas no editor (currentGridGuides)
+    const currentGuides = this.customGridGuidesSignal();
+    if (currentGuides && currentGuides.length > 0) {
+      gridGuides = currentGuides;
+    }
+    
+    if (gridGuides && gridGuides.length > 0) {
+      for (const gridGuide of gridGuides) {
         const guideLeft = gridGuide.x;
         const guideRight = gridGuide.x + gridGuide.width;
         const guideTop = gridGuide.y;

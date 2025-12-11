@@ -1,6 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { SecurityService } from './security.service';
 import { SupabaseService } from './supabase.service';
+import { ImageCompressionService } from './image-compression.service';
 import { environment } from '../../environments/environment';
 
 declare const google: any;
@@ -596,12 +597,29 @@ export class GooglePhotosService {
       
       const blob = await response.blob();
       
-      return new Promise((resolve, reject) => {
+      // Converter blob para dataUrl e comprimir
+      const rawDataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
+      
+      // Comprimir a imagem do Google Fotos
+      try {
+        const compressionService = new ImageCompressionService();
+        const result = await compressionService.compressDataUrl(rawDataUrl, {
+          maxWidth: 1920,
+          maxHeight: 1080,
+          quality: 0.85,
+          maxSizeKB: 500
+        });
+        console.log(`Google Foto comprimida: ${compressionService.formatSize(result.originalSize)} → ${compressionService.formatSize(result.compressedSize)} (${result.compressionRatio.toFixed(1)}% redução)`);
+        return result.dataUrl;
+      } catch (compressError) {
+        console.warn('Erro ao comprimir, usando original:', compressError);
+        return rawDataUrl;
+      }
     } catch (error) {
       console.error('Erro ao baixar foto:', error);
       throw error;

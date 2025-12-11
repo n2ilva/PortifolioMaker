@@ -657,3 +657,121 @@
 .no-slide button:hover {
   background: #00e5ff;
 }
+
+/* ============== Transições de Slide (Preview) ============== */
+
+.canvas.transitioning {
+  overflow: hidden;
+}
+
+/* Fade */
+.canvas.transition-fade-enter {
+  animation: canvasFadeIn ease-out forwards;
+}
+
+@keyframes canvasFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide Left */
+.canvas.transition-slideLeft-enter {
+  animation: canvasSlideFromRight ease-out forwards;
+}
+
+@keyframes canvasSlideFromRight {
+  from { transform: translateX(30%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide Right */
+.canvas.transition-slideRight-enter {
+  animation: canvasSlideFromLeft ease-out forwards;
+}
+
+@keyframes canvasSlideFromLeft {
+  from { transform: translateX(-30%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide Up */
+.canvas.transition-slideUp-enter {
+  animation: canvasSlideFromBottom ease-out forwards;
+}
+
+@keyframes canvasSlideFromBottom {
+  from { transform: translateY(30%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Slide Down */
+.canvas.transition-slideDown-enter {
+  animation: canvasSlideFromTop ease-out forwards;
+}
+
+@keyframes canvasSlideFromTop {
+  from { transform: translateY(-30%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Zoom In */
+.canvas.transition-zoomIn-enter {
+  animation: canvasZoomIn ease-out forwards;
+}
+
+@keyframes canvasZoomIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Zoom Out */
+.canvas.transition-zoomOut-enter {
+  animation: canvasZoomOut ease-out forwards;
+}
+
+@keyframes canvasZoomOut {
+  from { transform: scale(1.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Flip */
+.canvas.transition-flip-enter {
+  animation: canvasFlipIn ease-out forwards;
+  transform-style: preserve-3d;
+}
+
+@keyframes canvasFlipIn {
+  from { transform: perspective(1000px) rotateY(90deg); opacity: 0; }
+  to { transform: perspective(1000px) rotateY(0); opacity: 1; }
+}
+
+/* Rotate */
+.canvas.transition-rotate-enter {
+  animation: canvasRotateIn ease-out forwards;
+}
+
+@keyframes canvasRotateIn {
+  from { transform: rotate(-90deg) scale(0.7); opacity: 0; }
+  to { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+/* Blur */
+.canvas.transition-blur-enter {
+  animation: canvasBlurIn ease-out forwards;
+}
+
+@keyframes canvasBlurIn {
+  from { filter: blur(20px); opacity: 0; }
+  to { filter: blur(0); opacity: 1; }
+}
+
+/* Dissolve */
+.canvas.transition-dissolve-enter {
+  animation: canvasDissolveIn ease-out forwards;
+}
+
+@keyframes canvasDissolveIn {
+  0% { opacity: 0; filter: brightness(2) contrast(0.5); }
+  50% { filter: brightness(1.5) contrast(0.8); }
+  100% { opacity: 1; filter: brightness(1) contrast(1); }
+}

@@ -54,6 +54,12 @@ export type AnimationType =
   | 'highlight'
   | 'glitch';
 
+// Tipo de acionamento da animação
+export type AnimationStartTrigger = 
+  | 'onClick'        // Ao clicar (comportamento padrão/manual)
+  | 'withPrevious'   // Com a anterior (inicia junto com a animação anterior)
+  | 'afterPrevious'; // Após a anterior (inicia após a animação anterior terminar)
+
 // Configuração de animação do elemento
 export interface ElementAnimation {
   type: AnimationType;
@@ -61,6 +67,8 @@ export interface ElementAnimation {
   delay: number;         // atraso em segundos
   easing: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
   repeat: boolean;       // repetir animação
+  startTrigger?: AnimationStartTrigger; // tipo de acionamento
+  order?: number;        // ordem na sequência de animações
 }
 
 // Elemento base

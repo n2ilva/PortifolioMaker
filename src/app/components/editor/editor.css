@@ -15,12 +15,16 @@
 
 /* Painel de Slides (esquerda) */
 .panel-slide-list {
-  flex: 0 0 160px;
+  flex: 0 0 180px;
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
   transition: all 0.3s ease;
   z-index: 10;
 }
 
 .panel-slide-list app-slide-list {
+  display: block;
   width: 100%;
   height: 100%;
 }

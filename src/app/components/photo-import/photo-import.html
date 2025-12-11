@@ -220,12 +220,12 @@
                   <div class="layout-selector">
                     <label>Layout:</label>
                     <select 
-                      [value]="config.layoutId"
-                      (change)="onSlideLayoutChange(config, $event)"
+                      [ngModel]="config.layoutId"
+                      (ngModelChange)="onSlideLayoutChangeModel(config, $event)"
                       title="Selecionar layout do slide"
                     >
-                      @for (layout of layouts; track layout.id) {
-                        <option [value]="layout.id">{{ layout.name }}</option>
+                      @for (layout of sortedLayouts; track layout.id) {
+                        <option [ngValue]="layout.id">{{ layout.name }}</option>
                       }
                     </select>
                   </div>
@@ -248,8 +248,8 @@
                           <label>Sequência:</label>
                           <input 
                             type="number" 
-                            [value]="photo.orderNumber"
-                            (change)="onPhotoOrderChange(photo, $event)"
+                            [ngModel]="photo.orderNumber"
+                            (ngModelChange)="onPhotoOrderChangeModel(photo, $event)"
                             min="1"
                             class="order-input"
                             title="Número de sequência da foto"
@@ -259,12 +259,12 @@
                         <div class="control-group">
                           <label>Slide:</label>
                           <select 
-                            [value]="photo.targetSlide"
-                            (change)="onPhotoSlideChange(photo, $event)"
+                            [ngModel]="photo.targetSlide"
+                            (ngModelChange)="onPhotoSlideChangeModel(photo, $event)"
                             title="Slide de destino"
                           >
                             @for (slideNum of getSlideOptions(); track slideNum) {
-                              <option [value]="slideNum">
+                              <option [ngValue]="slideNum">
                                 {{ slideNum <= getSlidesCount() ? 'Slide ' + slideNum : '+ Novo ' + slideNum }}
                               </option>
                             }
@@ -274,12 +274,12 @@
                         <div class="control-group">
                           <label>Posição:</label>
                           <select 
-                            [value]="photo.slotInSlide"
-                            (change)="onPhotoSlotChange(photo, $event)"
+                            [ngModel]="photo.slotInSlide"
+                            (ngModelChange)="onPhotoSlotChangeModel(photo, $event)"
                             title="Posição no slide"
                           >
                             @for (slot of getSlotOptions(photo.targetSlide); track slot) {
-                              <option [value]="slot">{{ slot }}ª foto</option>
+                              <option [ngValue]="slot">{{ slot }}ª foto</option>
                             }
                           </select>
                         </div>

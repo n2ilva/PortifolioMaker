@@ -155,56 +155,42 @@
 <div class="mobile-menu" [class.open]="isMobileMenuOpen">
   <div class="mobile-menu-overlay" (click)="closeMobileMenu()"></div>
   <div class="mobile-menu-content">
-    <div class="mobile-menu-section">
-      <span class="mobile-menu-title">Projeto</span>
-      <button class="mobile-menu-item" (click)="onOpenProjects(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">folder_open</span> Meus Projetos
+    <div class="mobile-menu-grid">
+      <button class="mobile-menu-icon-btn" (click)="onOpenProjects(); closeMobileMenu()" title="Meus Projetos">
+        <span class="material-icons-round">folder_open</span>
       </button>
-      <button class="mobile-menu-item save" (click)="onSaveProject(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">save</span> Salvar Projeto
+      <button class="mobile-menu-icon-btn save" (click)="onSaveProject(); closeMobileMenu()" title="Salvar Projeto">
+        <span class="material-icons-round">save</span>
       </button>
-    </div>
-    
-    <div class="mobile-menu-section">
-      <span class="mobile-menu-title">Adicionar</span>
-      <button class="mobile-menu-item" (click)="onImportBatch(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">auto_awesome</span> Importar Inteligente
+      <button class="mobile-menu-icon-btn" (click)="onImportBatch(); closeMobileMenu()" title="Importar Inteligente">
+        <span class="material-icons-round">auto_awesome</span>
       </button>
-      <button class="mobile-menu-item" (click)="onAddImages(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">add_photo_alternate</span> Adicionar Fotos
+      <button class="mobile-menu-icon-btn" (click)="onAddImages(); closeMobileMenu()" title="Adicionar Fotos">
+        <span class="material-icons-round">add_photo_alternate</span>
       </button>
-      <button class="mobile-menu-item" (click)="onAddText(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">text_fields</span> Adicionar Texto
+      <button class="mobile-menu-icon-btn" (click)="onAddText(); closeMobileMenu()" title="Adicionar Texto">
+        <span class="material-icons-round">text_fields</span>
       </button>
-      <button class="mobile-menu-item" (click)="onNewSlide(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">add_to_photos</span> Novo Slide
+      <button class="mobile-menu-icon-btn" (click)="onNewSlide(); closeMobileMenu()" title="Novo Slide">
+        <span class="material-icons-round">add_to_photos</span>
       </button>
-    </div>
-
-    <div class="mobile-menu-section">
-      <span class="mobile-menu-title">Visualização</span>
-      <button class="mobile-menu-item" (click)="onAlignToGrid(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">grid_on</span> Alinhar à Grade
+      <button class="mobile-menu-icon-btn" (click)="onAlignToGrid(); closeMobileMenu()" title="Alinhar à Grade">
+        <span class="material-icons-round">grid_on</span>
       </button>
       <button 
-        class="mobile-menu-item" 
+        class="mobile-menu-icon-btn" 
         [class.active]="slideService.showGridGuides()"
         (click)="onToggleGridGuides()"
+        [title]="slideService.showGridGuides() ? 'Ocultar Grade' : 'Mostrar Grade'"
       >
-        <span class="material-icons-round menu-icon">{{ slideService.showGridGuides() ? 'grid_view' : 'grid_off' }}</span> 
-        {{ slideService.showGridGuides() ? 'Ocultar Grade' : 'Mostrar Grade' }}
+        <span class="material-icons-round">{{ slideService.showGridGuides() ? 'grid_view' : 'grid_off' }}</span>
+      </button>
+      <button class="mobile-menu-icon-btn" (click)="onExportVideo(); closeMobileMenu()" [disabled]="isExportingVideo" title="Exportar Vídeo">
+        <span class="material-icons-round">videocam</span>
+      </button>
+      <button class="mobile-menu-icon-btn presentation" (click)="onStartPresentation(); closeMobileMenu()" title="Apresentar">
+        <span class="material-icons-round">play_arrow</span>
       </button>
     </div>
-
-    <div class="mobile-menu-section">
-      <span class="mobile-menu-title">Apresentar</span>
-      <button class="mobile-menu-item" (click)="onExportVideo(); closeMobileMenu()" [disabled]="isExportingVideo">
-        <span class="material-icons-round menu-icon">videocam</span> Exportar Vídeo
-      </button>
-      <button class="mobile-menu-item presentation" (click)="onStartPresentation(); closeMobileMenu()">
-        <span class="material-icons-round menu-icon">play_arrow</span> Apresentar
-      </button>
-    </div>
-
-    </div>
+  </div>
 </div>

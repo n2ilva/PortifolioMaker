@@ -141,36 +141,44 @@ body {
 /* Slide */
 @keyframes slideInUp {
   from {
+    opacity: 0;
     transform: translateY(100%);
   }
   to {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes slideInDown {
   from {
+    opacity: 0;
     transform: translateY(-100%);
   }
   to {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes slideInLeft {
   from {
+    opacity: 0;
     transform: translateX(-100%);
   }
   to {
+    opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes slideInRight {
   from {
+    opacity: 0;
     transform: translateX(100%);
   }
   to {
+    opacity: 1;
     transform: translateX(0);
   }
 }
@@ -229,40 +237,50 @@ body {
 
 @keyframes pulse {
   0%, 100% {
+    opacity: 1;
     transform: scale(1);
   }
   50% {
+    opacity: 1;
     transform: scale(1.05);
   }
 }
 
 @keyframes shake {
   0%, 100% {
+    opacity: 1;
     transform: translateX(0);
   }
   10%, 30%, 50%, 70%, 90% {
+    opacity: 1;
     transform: translateX(-5px);
   }
   20%, 40%, 60%, 80% {
+    opacity: 1;
     transform: translateX(5px);
   }
 }
 
 @keyframes swing {
   0%, 100% {
+    opacity: 1;
     transform: rotate(0deg);
     transform-origin: top center;
   }
   20% {
+    opacity: 1;
     transform: rotate(15deg);
   }
   40% {
+    opacity: 1;
     transform: rotate(-10deg);
   }
   60% {
+    opacity: 1;
     transform: rotate(5deg);
   }
   80% {
+    opacity: 1;
     transform: rotate(-5deg);
   }
 }
@@ -356,10 +374,35 @@ body {
 
 /* Classe base para elementos animados */
 .element-animated {
-  animation-fill-mode: both;
+  animation-fill-mode: both; /* Mantém o estado final da animação */
+}
+
+/* Elemento começa oculto antes da animação */
+.element-hidden-before-animation {
+  opacity: 0; /* Inicia invisível */
+}
+
+/* Animação aplicada sobrescreve a opacidade */
+.element-animated.element-hidden-before-animation {
+  /* animation-fill-mode: both garante que:
+     - backwards: aplica o keyframe inicial durante o delay
+     - forwards: mantém o keyframe final após terminar
+  */
 }
 
 .element-animated.animate-repeat {
   animation-iteration-count: infinite;
+}
+
+/* Texto animado letra por letra - letras começam invisíveis */
+.letter-by-letter-hidden .animated-letter {
+  opacity: 0;
+  animation-fill-mode: both;
+}
+
+/* Texto animado palavra por palavra - palavras começam invisíveis */
+.word-by-word-hidden .animated-word {
+  opacity: 0;
+  animation-fill-mode: both;
 }
 

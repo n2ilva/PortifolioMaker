@@ -3,8 +3,10 @@
     @if (slideService.currentSlide(); as slide) {
       <div 
         #canvas
-        class="canvas"
+        class="canvas {{ previewTransitionClass }}"
+        [class.transitioning]="previewTransitionClass"
         [style.background-color]="slide.backgroundColor"
+        [style.animation-duration]="previewTransitionClass ? (slide.transition?.duration || 0.5) + 's' : null"
         (click)="onCanvasClick()"
       >
         <!-- Guias de Grade do Layout -->

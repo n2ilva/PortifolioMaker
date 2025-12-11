@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
 import { SlideService } from '../../services/slide.service';
-import { LayoutTemplate, AnimationType, ElementAnimation, SlideTransitionType } from '../../models/slide.model';
+import { ImageCompressionService } from '../../services/image-compression.service';
+import { LayoutTemplate, AnimationType, ElementAnimation, SlideTransitionType, AnimationStartTrigger } from '../../models/slide.model';
 import { ImageElement, TextElement } from '../../models/slide.model';
 
 interface BackgroundTheme {
@@ -35,7 +36,7 @@ export class Sidebar {
   slideService = inject(SlideService);
   private sanitizer = inject(DomSanitizer);
   
-  activeTab: 'layouts' | 'element' | 'slide' = 'layouts';
+  activeTab: 'layouts' | 'element' | 'slide' = 'slide';
   applyThemeToAllSlides = false;
   lastSelectedTheme: string | null = null;
   
@@ -354,6 +355,20 @@ export class Sidebar {
 
   onTransitionChange(transitionType: string): void {
     this.slideService.updateSlideTransition(transitionType);
+    
+    // Disparar preview da transição automaticamente
+    if (transitionType !== 'none') {
+      const currentSlide = this.slideService.currentSlide();
+      setTimeout(() => {
+        const event = new CustomEvent('preview-transition', { 
+          detail: { 
+            transitionType: transitionType, 
+            duration: currentSlide?.transition?.duration || 0.5 
+          }
+        });
+        document.dispatchEvent(event);
+      }, 50);
+    }
   }
 
   onTransitionDurationChange(event: Event): void {
@@ -430,13 +445,28 @@ export class Sidebar {
     const file = input.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      this.newImageData = base64;
-      this.newImagePreview = base64;
-    };
-    reader.readAsDataURL(file);
+    // Comprimir imagem de fundo antes de usar
+    const compressionService = new ImageCompressionService();
+    compressionService.compressFile(file, {
+      maxWidth: 1920,
+      maxHeight: 1080,
+      quality: 0.8,
+      maxSizeKB: 300
+    }).then(result => {
+      this.newImageData = result.dataUrl;
+      this.newImagePreview = result.dataUrl;
+      console.log(`Imagem de fundo comprimida: ${compressionService.formatSize(result.originalSize)} → ${compressionService.formatSize(result.compressedSize)} (${result.compressionRatio.toFixed(1)}% redução)`);
+    }).catch(error => {
+      console.error('Erro ao comprimir imagem:', error);
+      // Fallback para leitura sem compressão
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        this.newImageData = base64;
+        this.newImagePreview = base64;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   confirmAddImage(): void {
@@ -656,13 +686,22 @@ export class Sidebar {
     return null;
   }
 
+  // Layouts ordenados por número de fotos (1, 2, 3, 4, 6, 8)
+  get sortedLayoutTemplates(): LayoutTemplate[] {
+    const order = ['layout-1-image', 'layout-2-images', 'layout-3-images', 'layout-4-images-grid', 'layout-6-images-grid', 'layout-8-images-grid', 'layout-custom'];
+    return [...this.slideService.layoutTemplates].sort((a, b) => {
+      return order.indexOf(a.id) - order.indexOf(b.id);
+    });
+  }
+
   getLayoutIcon(layout: LayoutTemplate): string {
     const icons: { [key: string]: string } = {
-      'layout-3-images': '▣▣▣',
-      'layout-2-images': '◧◨',
-      'layout-1-image': '▣',
-      'layout-4-images-grid': '▦',
-      'layout-6-images-grid': '⬡',
+      'layout-1-image': '1',
+      'layout-2-images': '2',
+      'layout-3-images': '3',
+      'layout-4-images-grid': '4',
+      'layout-6-images-grid': '6',
+      'layout-8-images-grid': '8',
       'layout-custom': '⊞'
     };
     return icons[layout.id] || '▢';
@@ -839,9 +878,16 @@ export class Sidebar {
           duration: element.animation?.duration ?? 0.5,
           delay: element.animation?.delay ?? 0,
           easing: element.animation?.easing ?? 'ease',
-          repeat: element.animation?.repeat ?? false
+          repeat: element.animation?.repeat ?? false,
+          startTrigger: element.animation?.startTrigger ?? 'onClick',
+          order: element.animation?.order ?? 1
         };
         this.slideService.updateElement(element.id, { animation: newAnimation });
+        
+        // Disparar preview da animação automaticamente
+        setTimeout(() => {
+          this.previewAnimation();
+        }, 50);
       }
     }
   }
@@ -902,6 +948,36 @@ export class Sidebar {
     if (element && element.animation) {
       this.slideService.updateElement(element.id, { 
         animation: { ...element.animation, repeat: checked }
+      });
+    }
+  }
+
+  getAnimationStartTrigger(): AnimationStartTrigger {
+    const element = this.selectedElement;
+    return element?.animation?.startTrigger || 'onClick';
+  }
+
+  onAnimationStartTriggerChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as AnimationStartTrigger;
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, startTrigger: value }
+      });
+    }
+  }
+
+  getAnimationOrder(): number {
+    const element = this.selectedElement;
+    return element?.animation?.order || 1;
+  }
+
+  onAnimationOrderChange(event: Event): void {
+    const value = parseInt((event.target as HTMLInputElement).value, 10) || 1;
+    const element = this.selectedElement;
+    if (element && element.animation) {
+      this.slideService.updateElement(element.id, { 
+        animation: { ...element.animation, order: value }
       });
     }
   }

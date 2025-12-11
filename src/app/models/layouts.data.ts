@@ -59,6 +59,22 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     elements: []
   },
   {
+    id: 'layout-8-images-grid',
+    name: '8 Fotos em Grade',
+    description: 'Grade para oito imagens em formato 4x2',
+    gridGuides: [
+      { x: 2, y: 5, width: 22, height: 43, label: 'Foto 1' },
+      { x: 26, y: 5, width: 22, height: 43, label: 'Foto 2' },
+      { x: 50, y: 5, width: 22, height: 43, label: 'Foto 3' },
+      { x: 74, y: 5, width: 22, height: 43, label: 'Foto 4' },
+      { x: 2, y: 52, width: 22, height: 43, label: 'Foto 5' },
+      { x: 26, y: 52, width: 22, height: 43, label: 'Foto 6' },
+      { x: 50, y: 52, width: 22, height: 43, label: 'Foto 7' },
+      { x: 74, y: 52, width: 22, height: 43, label: 'Foto 8' }
+    ],
+    elements: []
+  },
+  {
     id: 'layout-custom',
     name: 'Personalizado',
     description: 'Slide em branco para customização total',

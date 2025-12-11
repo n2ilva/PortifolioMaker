@@ -1278,6 +1278,22 @@
   text-align: right;
 }
 
+.animation-order-input {
+  width: 60px;
+  padding: 6px 10px;
+  background: rgba(40, 40, 40, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.animation-order-input:focus {
+  outline: none;
+  border-color: #00d5ff;
+}
+
 .select-easing {
   width: 100%;
   padding: 8px 10px;

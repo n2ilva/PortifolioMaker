@@ -582,6 +582,9 @@ export class SlideCanvas implements OnInit, OnDestroy {
   
   // Elemento atualmente em preview de animação
   previewAnimationElementId: string | null = null;
+  
+  // Classe de transição de slide em preview
+  previewTransitionClass: string = '';
 
   private previewAnimationHandler = (event: Event) => {
     const customEvent = event as CustomEvent;
@@ -605,13 +608,37 @@ export class SlideCanvas implements OnInit, OnDestroy {
     }, 50);
   };
 
+  private previewTransitionHandler = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const { transitionType, duration } = customEvent.detail;
+    
+    // Resetar primeiro
+    this.previewTransitionClass = '';
+    this.cdr.detectChanges();
+    
+    // Aplicar a transição após um pequeno delay
+    setTimeout(() => {
+      this.previewTransitionClass = `transition-${transitionType}-enter`;
+      this.cdr.detectChanges();
+      
+      // Remover a classe após a animação terminar
+      setTimeout(() => {
+        this.previewTransitionClass = '';
+        this.cdr.detectChanges();
+      }, (duration || 0.5) * 1000 + 100);
+    }, 50);
+  };
+
   ngOnInit(): void {
     // Escutar eventos de preview de animação
     document.addEventListener('preview-animation', this.previewAnimationHandler);
+    // Escutar eventos de preview de transição
+    document.addEventListener('preview-transition', this.previewTransitionHandler);
   }
 
   ngOnDestroy(): void {
     document.removeEventListener('preview-animation', this.previewAnimationHandler);
+    document.removeEventListener('preview-transition', this.previewTransitionHandler);
   }
 
   // Gerar classes de animação para um elemento

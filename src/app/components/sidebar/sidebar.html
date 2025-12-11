@@ -3,10 +3,10 @@
   <div class="sidebar-tabs">
     <button 
       class="tab" 
-      [class.active]="activeTab === 'layouts'"
-      (click)="setActiveTab('layouts')"
+      [class.active]="activeTab === 'slide'"
+      (click)="setActiveTab('slide')"
     >
-      Layouts
+      Slide
     </button>
     <button 
       class="tab" 
@@ -18,10 +18,10 @@
     </button>
     <button 
       class="tab" 
-      [class.active]="activeTab === 'slide'"
-      (click)="setActiveTab('slide')"
+      [class.active]="activeTab === 'layouts'"
+      (click)="setActiveTab('layouts')"
     >
-      Slide
+      Layouts
     </button>
   </div>
 
@@ -33,7 +33,7 @@
         <p class="panel-description">Clique para aplicar um layout ao slide atual</p>
         
         <div class="layouts-grid">
-          @for (layout of slideService.layoutTemplates; track layout.id) {
+          @for (layout of sortedLayoutTemplates; track layout.id) {
             @if (layout.id !== 'layout-custom') {
               <div 
                 class="layout-item"
@@ -664,7 +664,34 @@
                 </div>
 
                 <div class="animation-control-row">
-                  <label class="small-label">Atraso</label>
+                  <label class="small-label">Iniciar</label>
+                  <select 
+                    [value]="getAnimationStartTrigger()"
+                    (change)="onAnimationStartTriggerChange($event)"
+                    class="select-easing"
+                  >
+                    <option value="onClick">Ao clicar</option>
+                    <option value="withPrevious">Com a anterior</option>
+                    <option value="afterPrevious">Após a anterior</option>
+                  </select>
+                </div>
+
+                <div class="animation-control-row">
+                  <label class="small-label">Ordem</label>
+                  <div class="slider-row">
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="99"
+                      [value]="getAnimationOrder()"
+                      (input)="onAnimationOrderChange($event)"
+                      class="animation-order-input"
+                    >
+                  </div>
+                </div>
+
+                <div class="animation-control-row">
+                  <label class="small-label">Atraso extra</label>
                   <div class="slider-row">
                     <input 
                       type="range" 
